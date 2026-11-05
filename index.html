@@ -1,1 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inside a Four-Stroke Engine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <h1>Inside a four-stroke engine</h1>
+  <p>Start it, move the throttle, and click any part to see what it does. Every piece below is moving for a reason.</p>
+</header>
 
+<main class="layout">
+  <section class="stage" aria-label="Engine cutaway">
+    <svg id="engine" viewBox="0 0 600 600" role="img" aria-label="Animated cutaway of a single-cylinder four-stroke engine">
+      <!-- crankcase -->
+      <g data-part="crankcase">
+        <rect x="205" y="432" width="190" height="165" rx="14" fill="#5b6b76"/>
+        <rect x="215" y="442" width="170" height="145" rx="8" fill="#0f1b24"/>
+      </g>
+      <!-- cylinder block + head -->
+      <g data-part="block"><rect x="225" y="250" width="150" height="192" fill="#5b6b76"/></g>
+      <rect x="240" y="250" width="120" height="192" fill="#0f1b24"/>
+      <rect x="215" y="442" width="170" height="6" fill="#0f1b24"/>
+      <g data-part="head"><rect x="210" y="200" width="180" height="50" rx="4" fill="#3b4954"/></g>
+      <!-- intake -->
+      <g data-part="intake">
+        <rect x="36" y="201" width="224" height="44" rx="4" fill="#5b6b76"/>
+        <rect x="40" y="205" width="216" height="36" fill="#0f1b24"/>
+        <rect x="256" y="205" width="28" height="46" fill="#0f1b24"/>
+        <line id="flowIn" x1="44" y1="223" x2="256" y2="223" stroke="#8fd0ee" stroke-width="3" stroke-linecap="round" stroke-dasharray="6 14"/>
+      </g>
+      <!-- exhaust -->
+      <g data-part="exhaust">
+        <rect x="340" y="201" width="224" height="44" rx="4" fill="#5b6b76"/>
+        <rect x="344" y="205" width="216" height="36" fill="#0f1b24"/>
+        <rect x="316" y="205" width="28" height="46" fill="#0f1b24"/>
+        <line id="flowEx" x1="344" y1="223" x2="556" y2="223" stroke="#ff9a5c" stroke-width="3" stroke-linecap="round" stroke-dasharray="6 14"/>
+      </g>
+      <!-- throttle plate -->
+      <g data-part="throttle" transform="translate(140 223)">
+        <circle r="5" fill="#c79a3d"/>
+        <g id="plate"><rect x="-17" y="-2.5" width="34" height="5" rx="2" fill="#c79a3d"/></g>
+      </g>
+      <!-- gas in the chamber -->
+      <g data-part="chamber"><rect id="gas" x="240" y="250" width="120" height="40" fill="#6fb7d6" fill-opacity="0"/></g>
+      <!-- cams and valves -->
+      <g data-part="camshaft">
+        <rect x="250" y="157" width="100" height="6" rx="3" fill="#3b4954"/>
+        <g id="camI"><circle r="13" fill="#c79a3d"/><polygon points="-9,8 9,8 0,34" fill="#c79a3d"/></g>
+        <g id="camE"><circle r="13" fill="#c79a3d"/><polygon points="-9,8 9,8 0,34" fill="#c79a3d"/></g>
+      </g>
+      <g data-part="valveIn" id="vI"><rect x="268" y="186" width="4" height="64" fill="#cfd6da"/><rect x="255" y="248" width="30" height="6" rx="2" fill="#cfd6da"/></g>
+      <g data-part="valveEx" id="vE"><rect x="328" y="186" width="4" height="64" fill="#cfd6da"/><rect x="315" y="248" width="30" height="6" rx="2" fill="#cfd6da"/></g>
+      <!-- spark plug -->
+      <g data-part="plug">
+        <rect x="296" y="168" width="8" height="46" rx="2" fill="#f1ede4"/>
+        <rect x="291" y="212" width="18" height="16" rx="2" fill="#c79a3d"/>
+        <rect x="298" y="228" width="4" height="26" fill="#cfd6da"/>
+        <circle id="spark" cx="300" cy="260" r="9" fill="#fff3b0" opacity="0"/>
+      </g>
+      <!-- moving assembly -->
+      <g id="crank">
+        <g data-part="flywheel">
+          <circle cx="300" cy="500" r="56" fill="#2b3a45" stroke="#5b6b76" stroke-width="4"/>
+          <circle cx="300" cy="534" r="9" fill="#0f1b24"/><circle cx="334" cy="500" r="9" fill="#0f1b24"/>
+          <circle cx="266" cy="500" r="9" fill="#0f1b24"/><circle cx="300" cy="466" r="9" fill="#0f1b24"/>
+        </g>
+        <g data-part="crankshaft">
+          <rect x="290" y="450" width="20" height="50" rx="10" fill="#c79a3d"/>
+          <circle cx="300" cy="534" r="14" fill="#8a6a28"/>
+          <circle cx="300" cy="450" r="9" fill="#e0b655"/>
+          <circle cx="300" cy="500" r="7" fill="#e0b655"/>
+        </g>
+      </g>
+      <g data-part="rod"><line id="rod" stroke="#aab4ba" stroke-width="12" stroke-linecap="round"/><circle id="big" r="10" fill="#aab4ba"/></g>
+      <g data-part="piston" id="pist">
+        <rect x="-58" y="-36" width="116" height="72" rx="5" fill="#aeb8be"/>
+        <rect x="-58" y="-28" width="116" height="3" fill="#5b6b76"/><rect x="-58" y="-21" width="116" height="3" fill="#5b6b76"/>
+        <circle r="8" fill="#c79a3d"/>
+      </g>
+    </svg>
+    <div class="legend"><span><i style="background:#6fb7d6"></i>fresh air and fuel</span><span><i style="background:#e4572e"></i>burning</span><span><i style="background:#7d868c"></i>exhaust</span></div>
+  </section>
+
+  <aside class="panel">
+    <div class="card controls">
+      <button id="start" type="button">Start engine</button>
+      <label for="throttle">Throttle <output id="tOut">15%</output></label>
+      <input id="throttle" type="range" min="0" max="100" value="15">
+      <label class="check"><input id="slow" type="checkbox"> Slow motion</label>
+    </div>
+
+    <div class="card read">
+      <div class="rpm"><strong id="rpm">0</strong><span>rpm</span></div>
+      <div class="bar"><div id="bar"></div></div>
+      <p id="valves">Intake valve closed. Exhaust valve closed.</p>
+    </div>
+
+    <div class="card">
+      <h2>The four strokes</h2>
+      <ol id="strokes">
+        <li><b>Intake.</b> The piston falls and the intake valve opens. Air and fuel flow in past the throttle.</li>
+        <li><b>Compression.</b> Both valves shut and the piston rises, squeezing the mixture into a tiny space.</li>
+        <li><b>Power.</b> The spark ignites the mixture. Hot expanding gas shoves the piston down.</li>
+        <li><b>Exhaust.</b> The exhaust valve opens and the rising piston pushes the burnt gas out.</li>
+      </ol>
+    </div>
+
+    <div class="card">
+      <h2>Parts</h2>
+      <div id="parts" class="parts"></div>
+      <div id="detail" class="detail">Pick a part, or click it on the engine.</div>
+    </div>
+  </aside>
+</main>
+<script src="script.js"></script>
+</body>
+</html>
