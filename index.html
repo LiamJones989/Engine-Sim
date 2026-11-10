@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Inside a Four-Stroke Engine</title>
+<title>Inside a Four-Cylinder Engine and Gearbox</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
@@ -11,79 +11,304 @@
 </head>
 <body>
 <header class="top">
-  <h1>Inside a four-stroke engine</h1>
-  <p>Start it, move the throttle, and click any part to see what it does. Every piece below is moving for a reason.</p>
+  <h1>Inside a four-cylinder engine and gearbox</h1>
+  <p>Start the engine, press the throttle, then shift gears and watch power travel from the pistons to the wheel. Click any part to learn what it does.</p>
 </header>
-
 <main class="layout">
-  <section class="stage" aria-label="Engine cutaway">
-    <svg id="engine" viewBox="0 0 600 600" role="img" aria-label="Animated cutaway of a single-cylinder four-stroke engine">
-      <!-- crankcase -->
-      <g data-part="crankcase">
-        <rect x="205" y="432" width="190" height="165" rx="14" fill="#5b6b76"/>
-        <rect x="215" y="442" width="170" height="145" rx="8" fill="#0f1b24"/>
+  <section class="stage" aria-label="Engine and transmission cutaway">
+    <svg id="engine" viewBox="0 0 1080 640" role="img" aria-label="Animated cutaway of a four-cylinder engine connected to a gearbox and wheel">
+
+    <defs>
+      <linearGradient id="st" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#93a3ae"/>
+        <stop offset="0.5" stop-color="#52626d"/>
+        <stop offset="1" stop-color="#3b4954"/>
+      </linearGradient>
+      <linearGradient id="pg" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" stop-color="#8f9ca5"/>
+        <stop offset="0.5" stop-color="#e3e9ec"/>
+        <stop offset="1" stop-color="#8f9ca5"/>
+      </linearGradient>
+      <linearGradient id="dk" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#34495a"/>
+        <stop offset="1" stop-color="#1d2b36"/>
+      </linearGradient>
+    </defs>
+
+    <!-- crankcase, block, head -->
+    <g data-part="crankcase">
+      <rect x="60" y="432" width="530" height="165" fill="url(#st)" rx="16"/>
+      <rect x="72" y="442" width="506" height="145" fill="#0b1620" rx="8"/>
+    </g>
+    <g data-part="block">
+      <rect x="60" y="250" width="530" height="192" fill="url(#st)"/>
+    </g>
+    <rect x="70" y="250" width="120" height="192" fill="#0b1620"/>
+    <rect x="200" y="250" width="120" height="192" fill="#0b1620"/>
+    <rect x="330" y="250" width="120" height="192" fill="#0b1620"/>
+    <rect x="460" y="250" width="120" height="192" fill="#0b1620"/>
+    <rect x="72" y="442" width="506" height="6" fill="#0b1620"/>
+    <g data-part="head">
+      <rect x="52" y="196" width="546" height="54" fill="#3b4954" rx="4"/>
+    </g>
+
+    <!-- exhaust manifold and tailpipe -->
+    <g data-part="exhaust">
+      <rect x="145" y="150" width="885" height="36" fill="url(#st)"/>
+      <rect x="141" y="150" width="38" height="100" fill="url(#st)"/>
+      <rect x="271" y="150" width="38" height="100" fill="url(#st)"/>
+      <rect x="401" y="150" width="38" height="100" fill="url(#st)"/>
+      <rect x="531" y="150" width="38" height="100" fill="url(#st)"/>
+      <rect x="147" y="154" width="881" height="28" fill="#0b1620"/>
+      <rect x="145" y="154" width="30" height="98" fill="#0b1620"/>
+      <rect x="275" y="154" width="30" height="98" fill="#0b1620"/>
+      <rect x="405" y="154" width="30" height="98" fill="#0b1620"/>
+      <rect x="535" y="154" width="30" height="98" fill="#0b1620"/>
+      <line id="fx" x1="150" y1="168" x2="1024" y2="168" stroke="#ff9a5c" stroke-width="3" stroke-linecap="round" stroke-dasharray="6 14"/>
+    </g>
+
+    <!-- intake manifold -->
+    <g data-part="intake">
+      <rect x="20" y="92" width="490" height="40" fill="url(#st)"/>
+      <rect x="81" y="128" width="38" height="76" fill="url(#st)"/>
+      <rect x="211" y="128" width="38" height="76" fill="url(#st)"/>
+      <rect x="341" y="128" width="38" height="76" fill="url(#st)"/>
+      <rect x="471" y="128" width="38" height="76" fill="url(#st)"/>
+      <rect x="24" y="96" width="482" height="32" fill="#0b1620"/>
+      <rect x="85" y="128" width="30" height="124" fill="#0b1620"/>
+      <rect x="215" y="128" width="30" height="124" fill="#0b1620"/>
+      <rect x="345" y="128" width="30" height="124" fill="#0b1620"/>
+      <rect x="475" y="128" width="30" height="124" fill="#0b1620"/>
+      <line id="fi" x1="28" y1="112" x2="500" y2="112" stroke="#8fd0ee" stroke-width="3" stroke-linecap="round" stroke-dasharray="6 14"/>
+      <line id="fv0" x1="100" y1="132" x2="100" y2="246" stroke="#8fd0ee" stroke-width="3" stroke-linecap="round" stroke-dasharray="6 14"/>
+      <line id="fv1" x1="230" y1="132" x2="230" y2="246" stroke="#8fd0ee" stroke-width="3" stroke-linecap="round" stroke-dasharray="6 14"/>
+      <line id="fv2" x1="360" y1="132" x2="360" y2="246" stroke="#8fd0ee" stroke-width="3" stroke-linecap="round" stroke-dasharray="6 14"/>
+      <line id="fv3" x1="490" y1="132" x2="490" y2="246" stroke="#8fd0ee" stroke-width="3" stroke-linecap="round" stroke-dasharray="6 14"/>
+    </g>
+
+    <!-- throttle plate -->
+    <g data-part="throttle" transform="translate(70 112)">
+      <circle cx="0" cy="0" r="5" fill="#c79a3d"/>
+      <g id="pl">
+        <rect x="-17" y="-2.5" width="34" height="5" fill="#c79a3d" rx="2"/>
       </g>
-      <!-- cylinder block + head -->
-      <g data-part="block"><rect x="225" y="250" width="150" height="192" fill="#5b6b76"/></g>
-      <rect x="240" y="250" width="120" height="192" fill="#0f1b24"/>
-      <rect x="215" y="442" width="170" height="6" fill="#0f1b24"/>
-      <g data-part="head"><rect x="210" y="200" width="180" height="50" rx="4" fill="#3b4954"/></g>
-      <!-- intake -->
-      <g data-part="intake">
-        <rect x="36" y="201" width="224" height="44" rx="4" fill="#5b6b76"/>
-        <rect x="40" y="205" width="216" height="36" fill="#0f1b24"/>
-        <rect x="256" y="205" width="28" height="46" fill="#0f1b24"/>
-        <line id="flowIn" x1="44" y1="223" x2="256" y2="223" stroke="#8fd0ee" stroke-width="3" stroke-linecap="round" stroke-dasharray="6 14"/>
+    </g>
+
+    <!-- camshaft: one intake cam (ci) and one exhaust cam (ce) per cylinder -->
+    <g data-part="camshaft">
+      <rect x="100" y="33" width="460" height="6" fill="#3b4954"/>
+      <g id="ci0"><circle cx="0" cy="0" r="13" fill="#c79a3d"/><polygon points="-9,8 9,8 0,34" fill="#c79a3d"/></g>
+      <g id="ce0"><circle cx="0" cy="0" r="13" fill="#c79a3d"/><polygon points="-9,8 9,8 0,34" fill="#c79a3d"/></g>
+      <g id="ci1"><circle cx="0" cy="0" r="13" fill="#c79a3d"/><polygon points="-9,8 9,8 0,34" fill="#c79a3d"/></g>
+      <g id="ce1"><circle cx="0" cy="0" r="13" fill="#c79a3d"/><polygon points="-9,8 9,8 0,34" fill="#c79a3d"/></g>
+      <g id="ci2"><circle cx="0" cy="0" r="13" fill="#c79a3d"/><polygon points="-9,8 9,8 0,34" fill="#c79a3d"/></g>
+      <g id="ce2"><circle cx="0" cy="0" r="13" fill="#c79a3d"/><polygon points="-9,8 9,8 0,34" fill="#c79a3d"/></g>
+      <g id="ci3"><circle cx="0" cy="0" r="13" fill="#c79a3d"/><polygon points="-9,8 9,8 0,34" fill="#c79a3d"/></g>
+      <g id="ce3"><circle cx="0" cy="0" r="13" fill="#c79a3d"/><polygon points="-9,8 9,8 0,34" fill="#c79a3d"/></g>
+    </g>
+
+    <!-- combustion chambers (gas color changes with the stroke) -->
+    <g data-part="chamber"><rect id="gs0" x="70" y="250" width="120" height="40" fill="#6fb7d6" fill-opacity="0"/></g>
+    <g data-part="chamber"><rect id="gs1" x="200" y="250" width="120" height="40" fill="#6fb7d6" fill-opacity="0"/></g>
+    <g data-part="chamber"><rect id="gs2" x="330" y="250" width="120" height="40" fill="#6fb7d6" fill-opacity="0"/></g>
+    <g data-part="chamber"><rect id="gs3" x="460" y="250" width="120" height="40" fill="#6fb7d6" fill-opacity="0"/></g>
+
+    <!-- spark plugs -->
+    <g data-part="plug">
+      <rect x="125" y="190" width="10" height="38" fill="#efe9dc" rx="2"/>
+      <rect x="121" y="224" width="18" height="14" fill="#c79a3d" rx="2"/>
+      <rect x="128" y="238" width="4" height="20" fill="#cfd6da"/>
+      <circle cx="130" cy="258" r="9" fill="#fff3b0" id="sp0" opacity="0"/>
+    </g>
+    <g data-part="plug">
+      <rect x="255" y="190" width="10" height="38" fill="#efe9dc" rx="2"/>
+      <rect x="251" y="224" width="18" height="14" fill="#c79a3d" rx="2"/>
+      <rect x="258" y="238" width="4" height="20" fill="#cfd6da"/>
+      <circle cx="260" cy="258" r="9" fill="#fff3b0" id="sp1" opacity="0"/>
+    </g>
+    <g data-part="plug">
+      <rect x="385" y="190" width="10" height="38" fill="#efe9dc" rx="2"/>
+      <rect x="381" y="224" width="18" height="14" fill="#c79a3d" rx="2"/>
+      <rect x="388" y="238" width="4" height="20" fill="#cfd6da"/>
+      <circle cx="390" cy="258" r="9" fill="#fff3b0" id="sp2" opacity="0"/>
+    </g>
+    <g data-part="plug">
+      <rect x="515" y="190" width="10" height="38" fill="#efe9dc" rx="2"/>
+      <rect x="511" y="224" width="18" height="14" fill="#c79a3d" rx="2"/>
+      <rect x="518" y="238" width="4" height="20" fill="#cfd6da"/>
+      <circle cx="520" cy="258" r="9" fill="#fff3b0" id="sp3" opacity="0"/>
+    </g>
+
+    <!-- valves: vi = intake, ve = exhaust -->
+    <g data-part="valveIn" id="vi0">
+      <rect x="98" y="64" width="4" height="186" fill="#d6dde1"/>
+      <rect x="85" y="248" width="30" height="6" fill="#d6dde1" rx="2"/>
+    </g>
+    <g data-part="valveEx" id="ve0">
+      <rect x="158" y="64" width="4" height="186" fill="#d6dde1"/>
+      <rect x="145" y="248" width="30" height="6" fill="#d6dde1" rx="2"/>
+    </g>
+    <g data-part="valveIn" id="vi1">
+      <rect x="228" y="64" width="4" height="186" fill="#d6dde1"/>
+      <rect x="215" y="248" width="30" height="6" fill="#d6dde1" rx="2"/>
+    </g>
+    <g data-part="valveEx" id="ve1">
+      <rect x="288" y="64" width="4" height="186" fill="#d6dde1"/>
+      <rect x="275" y="248" width="30" height="6" fill="#d6dde1" rx="2"/>
+    </g>
+    <g data-part="valveIn" id="vi2">
+      <rect x="358" y="64" width="4" height="186" fill="#d6dde1"/>
+      <rect x="345" y="248" width="30" height="6" fill="#d6dde1" rx="2"/>
+    </g>
+    <g data-part="valveEx" id="ve2">
+      <rect x="418" y="64" width="4" height="186" fill="#d6dde1"/>
+      <rect x="405" y="248" width="30" height="6" fill="#d6dde1" rx="2"/>
+    </g>
+    <g data-part="valveIn" id="vi3">
+      <rect x="488" y="64" width="4" height="186" fill="#d6dde1"/>
+      <rect x="475" y="248" width="30" height="6" fill="#d6dde1" rx="2"/>
+    </g>
+    <g data-part="valveEx" id="ve3">
+      <rect x="548" y="64" width="4" height="186" fill="#d6dde1"/>
+      <rect x="535" y="248" width="30" height="6" fill="#d6dde1" rx="2"/>
+    </g>
+
+    <!-- crankshaft: main shaft, then one rotating throw per cylinder -->
+    <g data-part="crankshaft">
+      <rect x="130" y="494" width="530" height="12" fill="#c79a3d"/>
+    </g>
+    <g data-part="crankshaft" id="cr0">
+      <circle cx="130" cy="500" r="52" fill="url(#dk)" stroke="#52626d" stroke-width="3"/>
+      <rect x="121" y="460" width="18" height="40" fill="#c79a3d" rx="9"/>
+      <circle cx="130" cy="460" r="9" fill="#e6bf62"/>
+      <circle cx="130" cy="526" r="14" fill="#8a6a28"/>
+      <circle cx="130" cy="500" r="6" fill="#e6bf62"/>
+    </g>
+    <g data-part="crankshaft" id="cr1">
+      <circle cx="260" cy="500" r="52" fill="url(#dk)" stroke="#52626d" stroke-width="3"/>
+      <rect x="251" y="460" width="18" height="40" fill="#c79a3d" rx="9"/>
+      <circle cx="260" cy="460" r="9" fill="#e6bf62"/>
+      <circle cx="260" cy="526" r="14" fill="#8a6a28"/>
+      <circle cx="260" cy="500" r="6" fill="#e6bf62"/>
+    </g>
+    <g data-part="crankshaft" id="cr2">
+      <circle cx="390" cy="500" r="52" fill="url(#dk)" stroke="#52626d" stroke-width="3"/>
+      <rect x="381" y="460" width="18" height="40" fill="#c79a3d" rx="9"/>
+      <circle cx="390" cy="460" r="9" fill="#e6bf62"/>
+      <circle cx="390" cy="526" r="14" fill="#8a6a28"/>
+      <circle cx="390" cy="500" r="6" fill="#e6bf62"/>
+    </g>
+    <g data-part="crankshaft" id="cr3">
+      <circle cx="520" cy="500" r="52" fill="url(#dk)" stroke="#52626d" stroke-width="3"/>
+      <rect x="511" y="460" width="18" height="40" fill="#c79a3d" rx="9"/>
+      <circle cx="520" cy="460" r="9" fill="#e6bf62"/>
+      <circle cx="520" cy="526" r="14" fill="#8a6a28"/>
+      <circle cx="520" cy="500" r="6" fill="#e6bf62"/>
+    </g>
+
+    <!-- connecting rods (positions are set by script.js) -->
+    <g data-part="rod"><line id="rd0" stroke="#aab4ba" stroke-width="12" stroke-linecap="round"/><circle cx="0" cy="0" r="10" fill="#aab4ba" id="bg0"/></g>
+    <g data-part="rod"><line id="rd1" stroke="#aab4ba" stroke-width="12" stroke-linecap="round"/><circle cx="0" cy="0" r="10" fill="#aab4ba" id="bg1"/></g>
+    <g data-part="rod"><line id="rd2" stroke="#aab4ba" stroke-width="12" stroke-linecap="round"/><circle cx="0" cy="0" r="10" fill="#aab4ba" id="bg2"/></g>
+    <g data-part="rod"><line id="rd3" stroke="#aab4ba" stroke-width="12" stroke-linecap="round"/><circle cx="0" cy="0" r="10" fill="#aab4ba" id="bg3"/></g>
+
+    <!-- pistons (drawn around 0,0 and moved by script.js) -->
+    <g data-part="piston" id="pi0">
+      <rect x="-58" y="-36" width="116" height="72" fill="url(#pg)" rx="5"/>
+      <rect x="-58" y="-28" width="116" height="3" fill="#52626d"/>
+      <rect x="-58" y="-21" width="116" height="3" fill="#52626d"/>
+      <circle cx="0" cy="0" r="8" fill="#c79a3d"/>
+    </g>
+    <g data-part="piston" id="pi1">
+      <rect x="-58" y="-36" width="116" height="72" fill="url(#pg)" rx="5"/>
+      <rect x="-58" y="-28" width="116" height="3" fill="#52626d"/>
+      <rect x="-58" y="-21" width="116" height="3" fill="#52626d"/>
+      <circle cx="0" cy="0" r="8" fill="#c79a3d"/>
+    </g>
+    <g data-part="piston" id="pi2">
+      <rect x="-58" y="-36" width="116" height="72" fill="url(#pg)" rx="5"/>
+      <rect x="-58" y="-28" width="116" height="3" fill="#52626d"/>
+      <rect x="-58" y="-21" width="116" height="3" fill="#52626d"/>
+      <circle cx="0" cy="0" r="8" fill="#c79a3d"/>
+    </g>
+    <g data-part="piston" id="pi3">
+      <rect x="-58" y="-36" width="116" height="72" fill="url(#pg)" rx="5"/>
+      <rect x="-58" y="-28" width="116" height="3" fill="#52626d"/>
+      <rect x="-58" y="-21" width="116" height="3" fill="#52626d"/>
+      <circle cx="0" cy="0" r="8" fill="#c79a3d"/>
+    </g>
+
+    <!-- flywheel -->
+    <g data-part="flywheel" id="fw">
+      <circle cx="660" cy="500" r="60" fill="url(#dk)" stroke="#8f9ca5" stroke-width="7" stroke-dasharray="5 4"/>
+      <circle cx="660" cy="500" r="53" fill="url(#dk)"/>
+      <circle cx="694" cy="500" r="9" fill="#0b1620"/>
+      <circle cx="660" cy="534" r="9" fill="#0b1620"/>
+      <circle cx="626" cy="500" r="9" fill="#0b1620"/>
+      <circle cx="660" cy="466" r="9" fill="#0b1620"/>
+    </g>
+
+    <!-- clutch -->
+    <g data-part="clutch">
+      <rect x="722" y="452" width="8" height="96" fill="#c79a3d"/>
+      <g id="pp">
+        <rect x="734" y="446" width="12" height="108" fill="url(#st)" rx="3"/>
+        <rect x="746" y="456" width="8" height="6" fill="#e6bf62"/>
+        <rect x="746" y="538" width="8" height="6" fill="#e6bf62"/>
       </g>
-      <!-- exhaust -->
-      <g data-part="exhaust">
-        <rect x="340" y="201" width="224" height="44" rx="4" fill="#5b6b76"/>
-        <rect x="344" y="205" width="216" height="36" fill="#0f1b24"/>
-        <rect x="316" y="205" width="28" height="46" fill="#0f1b24"/>
-        <line id="flowEx" x1="344" y1="223" x2="556" y2="223" stroke="#ff9a5c" stroke-width="3" stroke-linecap="round" stroke-dasharray="6 14"/>
+    </g>
+
+    <!-- gearbox housing, shafts and the selected gear pair -->
+    <g data-part="gearbox">
+      <rect x="776" y="428" width="176" height="208" fill="url(#st)" rx="10"/>
+      <rect x="784" y="436" width="160" height="192" fill="#0b1620" rx="5"/>
+      <rect x="730" y="494" width="128" height="12" fill="#8f9ca5"/>
+      <rect x="790" y="564" width="68" height="12" fill="#8f9ca5"/>
+    </g>
+    <g data-part="gears">
+      <g id="gI">
+        <circle id="gIc" cx="858" cy="500" r="35" fill="#2f4352" stroke="#c9d3d9" stroke-width="8"/>
+        <circle cx="858" cy="500" r="7" fill="#c79a3d"/>
+        <line id="gIl" x1="858" y1="500" x2="858" y2="475" stroke="#c79a3d" stroke-width="4" stroke-linecap="round"/>
       </g>
-      <!-- throttle plate -->
-      <g data-part="throttle" transform="translate(140 223)">
-        <circle r="5" fill="#c79a3d"/>
-        <g id="plate"><rect x="-17" y="-2.5" width="34" height="5" rx="2" fill="#c79a3d"/></g>
+      <g id="gC">
+        <circle id="gCc" cx="858" cy="570" r="35" fill="#2f4352" stroke="#c9d3d9" stroke-width="8"/>
+        <circle cx="858" cy="570" r="7" fill="#c79a3d"/>
+        <line id="gCl" x1="858" y1="570" x2="858" y2="545" stroke="#c79a3d" stroke-width="4" stroke-linecap="round"/>
       </g>
-      <!-- gas in the chamber -->
-      <g data-part="chamber"><rect id="gas" x="240" y="250" width="120" height="40" fill="#6fb7d6" fill-opacity="0"/></g>
-      <!-- cams and valves -->
-      <g data-part="camshaft">
-        <rect x="250" y="157" width="100" height="6" rx="3" fill="#3b4954"/>
-        <g id="camI"><circle r="13" fill="#c79a3d"/><polygon points="-9,8 9,8 0,34" fill="#c79a3d"/></g>
-        <g id="camE"><circle r="13" fill="#c79a3d"/><polygon points="-9,8 9,8 0,34" fill="#c79a3d"/></g>
-      </g>
-      <g data-part="valveIn" id="vI"><rect x="268" y="186" width="4" height="64" fill="#cfd6da"/><rect x="255" y="248" width="30" height="6" rx="2" fill="#cfd6da"/></g>
-      <g data-part="valveEx" id="vE"><rect x="328" y="186" width="4" height="64" fill="#cfd6da"/><rect x="315" y="248" width="30" height="6" rx="2" fill="#cfd6da"/></g>
-      <!-- spark plug -->
-      <g data-part="plug">
-        <rect x="296" y="168" width="8" height="46" rx="2" fill="#f1ede4"/>
-        <rect x="291" y="212" width="18" height="16" rx="2" fill="#c79a3d"/>
-        <rect x="298" y="228" width="4" height="26" fill="#cfd6da"/>
-        <circle id="spark" cx="300" cy="260" r="9" fill="#fff3b0" opacity="0"/>
-      </g>
-      <!-- moving assembly -->
-      <g id="crank">
-        <g data-part="flywheel">
-          <circle cx="300" cy="500" r="56" fill="#2b3a45" stroke="#5b6b76" stroke-width="4"/>
-          <circle cx="300" cy="534" r="9" fill="#0f1b24"/><circle cx="334" cy="500" r="9" fill="#0f1b24"/>
-          <circle cx="266" cy="500" r="9" fill="#0f1b24"/><circle cx="300" cy="466" r="9" fill="#0f1b24"/>
-        </g>
-        <g data-part="crankshaft">
-          <rect x="290" y="450" width="20" height="50" rx="10" fill="#c79a3d"/>
-          <circle cx="300" cy="534" r="14" fill="#8a6a28"/>
-          <circle cx="300" cy="450" r="9" fill="#e0b655"/>
-          <circle cx="300" cy="500" r="7" fill="#e0b655"/>
-        </g>
-      </g>
-      <g data-part="rod"><line id="rod" stroke="#aab4ba" stroke-width="12" stroke-linecap="round"/><circle id="big" r="10" fill="#aab4ba"/></g>
-      <g data-part="piston" id="pist">
-        <rect x="-58" y="-36" width="116" height="72" rx="5" fill="#aeb8be"/>
-        <rect x="-58" y="-28" width="116" height="3" fill="#5b6b76"/><rect x="-58" y="-21" width="116" height="3" fill="#5b6b76"/>
-        <circle r="8" fill="#c79a3d"/>
-      </g>
+    </g>
+    <text id="gt" x="794" y="456" class="lab" style="fill:#e6bf62"></text>
+
+    <!-- driveshaft, road and wheel -->
+    <g data-part="shaft">
+      <rect x="858" y="564" width="162" height="12" fill="url(#st)"/>
+    </g>
+    <line id="road" x1="860" y1="620" x2="1078" y2="620" stroke="#55656f" stroke-width="3" stroke-dasharray="26 18"/>
+    <g data-part="wheel" id="wh">
+      <circle cx="1020" cy="570" r="48" fill="#1c252b"/>
+      <circle cx="1020" cy="570" r="34" fill="url(#st)"/>
+      <line x1="1020" y1="570" x2="1050" y2="570" stroke="#1b2a35" stroke-width="5"/>
+      <line x1="1020" y1="570" x2="1029.3" y2="598.5" stroke="#1b2a35" stroke-width="5"/>
+      <line x1="1020" y1="570" x2="995.7" y2="587.6" stroke="#1b2a35" stroke-width="5"/>
+      <line x1="1020" y1="570" x2="995.7" y2="552.4" stroke="#1b2a35" stroke-width="5"/>
+      <line x1="1020" y1="570" x2="1029.3" y2="541.5" stroke="#1b2a35" stroke-width="5"/>
+      <circle cx="1020" cy="570" r="9" fill="#c79a3d"/>
+    </g>
+
+    <!-- labels -->
+    <text x="24" y="86" class="lab">Air in</text>
+    <text x="530" y="114" class="lab">Intake manifold</text>
+    <text x="530" y="146" class="lab">Exhaust manifold</text>
+    <text x="580" y="40" class="lab">Camshaft</text>
+    <text x="40" y="148" class="lab">Throttle plate</text>
+    <text x="100" y="600" class="lab">Crankshaft</text>
+    <text x="628" y="432" class="lab">Flywheel</text>
+    <text x="722" y="440" class="lab">Clutch</text>
+    <text x="790" y="420" class="lab">Gearbox</text>
+    <text x="880" y="556" class="lab">Driveshaft</text>
+    <text x="985" y="520" class="lab">Wheel</text>
+    <text x="990" y="142" class="lab">Tailpipe</text>
+    <text x="70" y="244" class="lab">Pistons 1-4</text>
     </svg>
     <div class="legend"><span><i style="background:#6fb7d6"></i>fresh air and fuel</span><span><i style="background:#e4572e"></i>burning</span><span><i style="background:#7d868c"></i>exhaust</span></div>
   </section>
@@ -95,23 +320,29 @@
       <input id="throttle" type="range" min="0" max="100" value="15">
       <label class="check"><input id="slow" type="checkbox"> Slow motion</label>
     </div>
-
-    <div class="card read">
-      <div class="rpm"><strong id="rpm">0</strong><span>rpm</span></div>
-      <div class="bar"><div id="bar"></div></div>
-      <p id="valves">Intake valve closed. Exhaust valve closed.</p>
-    </div>
-
     <div class="card">
-      <h2>The four strokes</h2>
+      <h2>Gearbox</h2>
+      <div class="gears" id="gears"></div>
+      <p class="small">Keys 0 to 5 also pick a gear (0 is neutral).</p>
+    </div>
+    <div class="card read">
+      <div class="two">
+        <div class="rpm"><strong id="rpm">0</strong><span>rpm</span></div>
+        <div class="rpm"><strong id="kph">0</strong><span>km/h</span></div>
+      </div>
+      <div class="bar"><div id="bar"></div></div>
+      <div class="chips" id="chips"></div>
+      <p id="valves" class="small">Firing order 1-3-4-2, so one cylinder fires every half turn.</p>
+    </div>
+    <div class="card">
+      <h2>The four strokes (cylinder 1)</h2>
       <ol id="strokes">
         <li><b>Intake.</b> The piston falls and the intake valve opens. Air and fuel flow in past the throttle.</li>
-        <li><b>Compression.</b> Both valves shut and the piston rises, squeezing the mixture into a tiny space.</li>
+        <li><b>Compression.</b> Both valves shut and the piston rises, squeezing the mixture.</li>
         <li><b>Power.</b> The spark ignites the mixture. Hot expanding gas shoves the piston down.</li>
-        <li><b>Exhaust.</b> The exhaust valve opens and the rising piston pushes the burnt gas out.</li>
+        <li><b>Exhaust.</b> The exhaust valve opens and the rising piston pushes burnt gas out.</li>
       </ol>
     </div>
-
     <div class="card">
       <h2>Parts</h2>
       <div id="parts" class="parts"></div>
