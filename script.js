@@ -1,3 +1,6 @@
+const fail = m => { const d = document.createElement("div"); d.style.cssText = "position:fixed;left:12px;right:12px;bottom:12px;background:#b3261e;color:#fff;padding:12px 16px;border-radius:10px;font:14px system-ui;z-index:99"; d.textContent = m; document.body.appendChild(d); };
+if (typeof THREE === "undefined") { fail("three.js did not load. Check your internet connection, or the three.js script tag in index.html."); throw new Error("three.js missing"); }
+addEventListener("error", e => fail("Script error: " + e.message + " (line " + e.lineno + ")"));
 const PARTS = {
   block:["Cylinder block","The strong body with four smooth bores. Each piston slides inside one bore, and the walls carry heat away."],
   head:["Cylinder head","Seals the top of the cylinders and holds the valves, spark plugs and the passages for air in and exhaust out."],
@@ -23,7 +26,8 @@ const PARTS = {
 const $ = s => document.querySelector(s), T = THREE, PI = Math.PI;
 const X = [-3.3,-1.1,1.1,3.3], OFF = [0,540,180,360], RC = .55, LR = 2, FD = 4.1, RAT = [0,3.6,2.1,1.4,1,.75];
 const NAMES = ["Intake","Compression","Power","Exhaust"], FILL = [0x6fb7d6,0x4f8fb0,0xe4572e,0x7d868c];
-const cv = $("#view"), ren = new T.WebGLRenderer({canvas:cv, antialias:true});
+const cv = $("#view"); let ren;
+try { ren = new T.WebGLRenderer({canvas:cv, antialias:true}); } catch (e) { fail("Your browser could not start WebGL, which this 3D page needs."); throw e; }
 ren.setPixelRatio(Math.min(2, devicePixelRatio));
 const scene = new T.Scene(); scene.background = new T.Color(0x0c1720); scene.fog = new T.Fog(0x0c1720, 160, 650);
 const cam = new T.PerspectiveCamera(45, 1, .5, 2000);
@@ -185,7 +189,7 @@ cv.addEventListener("pointerup", e => { CAM.drag = false; if (CAM.moved < 5){ co
 cv.addEventListener("wheel", e => { e.preventDefault(); CAM.d = Math.min(140,Math.max(10,CAM.d*(1+e.deltaY*.001))); }, {passive:false});
 function setMode(m){
   MODE = m; $("#mEngine").classList.toggle("on", m === "engine"); $("#mDrive").classList.toggle("on", m === "drive");
-  shell.visible = m === "drive"; if (m === "drive"){ CAM.az = PI/2; CAM.pol = 1.15; CAM.d = 70; } else { CAM.az = .9; CAM.pol = 1.2; CAM.d = 40; }
+  shell.visible = m === "drive"; if (m === "drive"){ CAM.az = PI/2; CAM.pol = 1.15; CAM.d = 70; if (!S.run) setRun(true); if (S.g === 0) setGear(1); } else { CAM.az = .9; CAM.pol = 1.2; CAM.d = 40; }
 }
 $("#mEngine").onclick = () => setMode("engine"); $("#mDrive").onclick = () => setMode("drive");
 function fit(){ const w = cv.clientWidth, h = cv.clientHeight; ren.setSize(w,h,false); cam.aspect = w/h; cam.updateProjectionMatrix(); }
@@ -223,6 +227,11 @@ function step(dt){
   const gasKey = KEY.w || KEY.arrowup, brake = KEY.s || KEY.arrowdown || KEY[" "];
   if (gasKey){ thr.value = Math.min(100,+thr.value+260*dt); if (!S.run) setRun(true); } else if (MODE === "drive") thr.value = Math.max(0,+thr.value-320*dt);
   const t = thr.value/100; $("#tOut").textContent = Math.round(t*100)+"%";
+  // automatic gearbox (Drive mode only)
+  if ($("#auto").checked && MODE === "drive" && S.run){
+    if (S.g === 0 && gasKey) setGear(1);
+    else if (S.g > 0 && S.sh <= 0){ if (S.rpm > 5600 && S.g < 5) setGear(S.g+1); else if (S.rpm < 1700 && S.g > 1) setGear(S.g-1); }
+  }
   // engine and car physics
   const rho = RAT[S.g] || 1, eg = S.g > 0 && S.sh <= 0, wl = S.v/.114*FD*rho;
   S.sh = Math.max(0,S.sh-dt);
