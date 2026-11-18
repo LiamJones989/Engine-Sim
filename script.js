@@ -1,1188 +1,1644 @@
 
-const PARTS = {
-  block:["Cylinder block","The strong body with four smooth bores. Each piston slides inside one bore, and the walls carry heat away."],
-  head:["Cylinder head","Seals the top of the cylinders and holds the valves, spark plugs and the passages for air in and exhaust out."],
-  chamber:["Combustion chamber","The space above each piston. It shrinks as the piston rises and grows as it falls. This is where fuel burns."],
-  piston:["Pistons and rings","Four pistons take the push from burning gas. Rings seal the gap to the wall, and a wrist pin joins each piston to its rod."],
-  rod:["Connecting rods","Link each piston to the crankshaft and turn straight up-and-down motion into rotation."],
-  crankshaft:["Crankshaft","A shaft with one offset throw per cylinder. Pistons 1 and 4 rise while 2 and 3 fall, which keeps the engine smooth. Counterweights balance each throw."],
-  flywheel:["Flywheel","A heavy disc that stores spin energy so the engine runs smoothly between power strokes. Its toothed rim meshes with the starter motor."],
-  crankcase:["Crankcase","The housing around the crankshaft. It holds oil and keeps the bottom end aligned."],
-  camshaft:["Camshaft","Its lobes push the valves open at the right moment. It turns at half crank speed, so each valve opens once every two crank turns."],
-  valveIn:["Intake valves","Open during the intake stroke to let air and fuel in, then seal the chamber for compression and power."],
-  valveEx:["Exhaust valves","Open at the end of the power stroke so the rising piston can push burnt gas out."],
-  plug:["Spark plugs","Fire a spark just before the top of compression. They fire in the order 1-3-4-2, so power arrives every half turn."],
-  throttle:["Throttle plate","A flap in the intake pipe. Closed, little air gets in and the engine idles. Open, more air and fuel arrive, so each power stroke is stronger and rpm climbs."],
-  intake:["Intake manifold","Shares fresh air between the four cylinders through one runner each. The throttle plate sits at its entrance, after the air filter."],
-  exhaust:["Exhaust manifold","Collects burnt gas from all four cylinders into one pipe that leads to the tailpipe."],
-  clutch:["Clutch","A friction disc pressed against the flywheel by a spring plate. Pressing the pedal pulls the plate away, so the gearbox can change gear without grinding. It opens briefly on every shift."],
-  gearbox:["Gearbox (transmission)","Holds the input shaft from the clutch, a second shaft below it, and the gears that link them. Picking a gear changes how fast the wheels turn for a given engine speed."],
-  gears:["Gear pair","A small gear driving a big one multiplies torque but slows the wheel (1st gear). A big driving a small one is faster but weaker (5th gear). The pair shown is the one selected."],
-  shaft:["Driveshaft and final drive","Carries power from the gearbox to the rear axle and reduces speed once more by a fixed ratio of 4.1 to 1."],
-  wheel:["Wheels","Turn the engine's rotation into motion along the road. Speed is engine rpm divided by the gear ratio and the final drive. The front wheels steer."]
-};
-
-const $ = s => document.querySelector(s);
-const T = window.THREE;
-const PI = Math.PI;
-
-// ---------- error handling ----------
-function fail(message) {
-  let banner = $("#scriptError");
-
-  if (!banner) {
-    banner = document.createElement("div");
-    banner.id = "scriptError";
-
-    Object.assign(banner.style, {
-      position: "fixed",
-      left: "12px",
-      right: "12px",
-      bottom: "12px",
-      padding: "14px 18px",
-      background: "#b52b24",
-      color: "#fff",
-      borderRadius: "10px",
-      zIndex: "99999",
-      font: "14px Arial, sans-serif",
-      whiteSpace: "pre-wrap",
-      boxShadow: "0 4px 18px rgba(0,0,0,.3)"
-    });
-
-    document.body.appendChild(banner);
-  }
-
-  banner.textContent = "Simulator error: " + message;
-  banner.style.display = "block";
-}
-
-function hideError() {
-  const banner = $("#scriptError");
-  if (banner) banner.style.display = "none";
-}
-
-// This browser warning is normally harmless.
-// Do not let it appear as a fatal simulator error.
-window.addEventListener("error", event => {
-  const message = event.message || "";
-
-  if (
-    message.includes("ResizeObserver loop completed") ||
-    message.includes("ResizeObserver loop limit exceeded")
-  ) {
-    event.stopImmediatePropagation();
-    event.preventDefault();
-  }
-}, true);
-
-if (!T) {
-  fail("Three.js did not load. Check your internet connection and the Three.js script in index.html.");
-  throw new Error("Three.js is unavailable.");
-}
-
-const cv = $("#view");
-
-if (!cv) {
-  fail("The 3D canvas (#view) was not found. Check your index.html.");
-  throw new Error("Missing #view canvas.");
-}
-
-// ---------- renderer ----------
-let ren;
-
-try {
-  ren = new T.WebGLRenderer({
-    canvas: cv,
-    antialias: true,
-    alpha: false,
-    powerPreference: "high-performance"
-  });
-} catch (error) {
-  fail("Your browser could not start WebGL. Try enabling hardware acceleration or updating your graphics drivers.\n" + error.message);
-  throw error;
-}
-
-ren.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
-ren.outputEncoding = T.sRGBEncoding;
-ren.setClearColor(0x0c1720, 1);
-
-const scene = new T.Scene();
-scene.background = new T.Color(0x0c1720);
-scene.fog = new T.Fog(0x0c1720, 160, 650);
-
-const cam = new T.PerspectiveCamera(45, 1, .5, 2000);
-
-scene.add(new T.HemisphereLight(0xcfe6f5, 0x1a2630, .95));
-
-const sun = new T.DirectionalLight(0xffffff, .9);
-sun.position.set(30, 60, 40);
-scene.add(sun);
-
-// ---------- helpers ----------
-const ALL = [];
-const Y = new T.Vector3(0, 1, 0);
-
-const mat = (c, o = {}) =>
-  new T.MeshStandardMaterial(
-    Object.assign({ color: c, metalness: .6, roughness: .35 }, o)
-  );
-
-const glass = (c, op, o = {}) =>
-  mat(c, Object.assign({
-    transparent: true,
-    opacity: op,
-    metalness: .2,
-    roughness: .3,
-    depthWrite: false,
-    side: T.DoubleSide
-  }, o));
-
-const cylX = (r, l, s = 28) => {
-  const g = new T.CylinderGeometry(r, r, l, s);
-  g.rotateZ(PI / 2);
-  return g;
-};
-
-function reg(k, o) {
-  o.traverse(m => {
-    if (m.material) {
-      m.userData.k = k;
-      m.material.userData = Object.assign({
-        o: m.material.opacity,
-        tr: m.material.transparent
-      }, m.material.userData);
-
-      ALL.push(m);
-    }
-  });
-
-  return o;
-}
-
-function mesh(geo, m, k, par, x = 0, y = 0, z = 0) {
-  const o = new T.Mesh(geo, m);
-  o.position.set(x, y, z);
-  par.add(o);
-
-  if (k) reg(k, o);
-
-  return o;
-}
-
-function box(w, h, d, m, k, par, x, y, z, edge) {
-  const o = mesh(new T.BoxGeometry(w, h, d), m, null, par, x, y, z);
-
-  if (edge) {
-    o.add(new T.LineSegments(
-      new T.EdgesGeometry(o.geometry),
-      new T.LineBasicMaterial({
-        color: 0x8fa3b0,
-        transparent: true,
-        opacity: .55
-      })
-    ));
-  }
-
-  if (k) reg(k, o);
-
-  return o;
-}
-
-function link(o, a, b) {
-  const d = b.clone().sub(a);
-
-  o.position.copy(a).addScaledVector(d, .5);
-  o.scale.y = d.length();
-  o.quaternion.setFromUnitVectors(Y, d.normalize());
-}
-
-const V = (x, y, z) => new T.Vector3(x, y, z);
-
-const grp = (par, x = 0, y = 0, z = 0) => {
-  const g = new T.Group();
-  g.position.set(x, y, z);
-  par.add(g);
-  return g;
-};
-
-// ---------- car and engine ----------
-const X = [-3.3, -1.1, 1.1, 3.3];
-const OFF = [0, 540, 180, 360];
-const RC = .55;
-const LR = 2;
-const FD = 4.1;
-const RAT = [0, 3.6, 2.1, 1.4, 1, .75];
-
-const NAMES = ["Intake", "Compression", "Power", "Exhaust"];
-const FILL = [0x6fb7d6, 0x4f8fb0, 0xe4572e, 0x7d868c];
-
-const car = new T.Group();
-scene.add(car);
-
-const eng = grp(car);
-const BR = 0xc79a3d;
-
-// Crankcase, block and head
-box(9.2, 2.1, 2.6, glass(0x5b6b76, .16), "crankcase", eng, 0, -.15, 0, true);
-box(9.2, 2.4, 2.6, glass(0x5b6b76, .14), "block", eng, 0, 2.1, 0, true);
-box(9.2, .8, 2.6, glass(0x3b4954, .35), "head", eng, 0, 3.7, 0, true);
-
-X.forEach(x =>
-  mesh(
-    new T.CylinderGeometry(.95, .95, 2.4, 32, 1, true),
-    glass(0x6fb7d6, .2),
-    "block",
-    eng,
-    x, 2.1, 0
-  )
-);
-
-// Crankshaft
-mesh(cylX(.25, 10.4), mat(BR), "crankshaft", eng, .4, 0, 0);
-
-const crk = [];
-const pist = [];
-const rodM = [];
-const bigM = [];
-const gas = [];
-const vi = [];
-const ve = [];
-const ci = [];
-const ce = [];
-const spk = [];
-const runI = [];
-const gasM = [];
-
-X.forEach((x, i) => {
-  const c = grp(eng, x, 0, 0);
-  crk.push(c);
-
-  mesh(cylX(.9, .2, 40), mat(0x34495a), "crankshaft", c);
-  mesh(cylX(.2, .9), mat(0xe6bf62), "crankshaft", c, 0, RC, 0);
-  box(.3, .7, .9, mat(0x8a6a28), "crankshaft", c, 0, -.55, 0);
-
-  // Piston
-  const p = grp(eng, x, 0, 0);
-  pist.push(p);
-
-  mesh(
-    new T.CylinderGeometry(.85, .85, .9, 32),
-    mat(0xcfd8de, { metalness: .8, roughness: .25 }),
-    "piston", p, 0, .1, 0
-  );
-
-  [.3, .17].forEach(h => {
-    const rg = new T.TorusGeometry(.85, .035, 8, 32);
-    rg.rotateX(PI / 2);
-    mesh(rg, mat(0x52626d), "piston", p, 0, h, 0);
-  });
-
-  mesh(cylX(.12, .9), mat(BR), "piston", p);
-
-  rodM.push(
-    mesh(new T.CylinderGeometry(.09, .09, 1, 12), mat(0xaab4ba), "rod", eng)
-  );
-
-  bigM.push(mesh(cylX(.24, .45), mat(0xaab4ba), "rod", eng));
-
-  // Combustion chamber gas
-  const gm = glass(0x6fb7d6, 0, { emissive: 0x000000 });
-  gm.userData.anim = 1;
-  gasM.push(gm);
-
-  gas.push(
-    mesh(new T.CylinderGeometry(.85, .85, 1, 32), gm, "chamber", eng, x, 3, 0)
-  );
-
-  // Valves
-  [[-.45, "valveIn", vi], [.45, "valveEx", ve]].forEach(([dx, k, arr]) => {
-    const v = grp(eng, x + dx, 0, 0);
-    arr.push(v);
-
-    mesh(new T.CylinderGeometry(.06, .06, 1.65, 10), mat(0xd6dde1), k, v, 0, 4.125, 0);
-    mesh(new T.CylinderGeometry(.3, .3, .07, 24), mat(0xd6dde1), k, v, 0, 3.28, 0);
-  });
-
-  // Camshafts
-  [[-.45, ci], [.45, ce]].forEach(([dx, arr]) => {
-    const cg = grp(eng, x + dx, 5.3, 0);
-    arr.push(cg);
-
-    mesh(cylX(.22, .3), mat(BR), "camshaft", cg);
-    box(.3, .5, .28, mat(BR), "camshaft", cg, 0, -.4, 0);
-  });
-
-  // Spark plugs
-  mesh(cylX(.11, 1.1, 12).rotateZ(-PI / 2), mat(0xefe9dc), "plug", eng, x, 4.4, 0);
-  mesh(new T.CylinderGeometry(.2, .2, .25, 6), mat(BR), "plug", eng, x, 3.85, 0);
-  mesh(new T.CylinderGeometry(.03, .03, .5, 8), mat(0xcfd6da), "plug", eng, x, 3.2, 0);
-
-  const sm = mat(0xfff3b0, {
-    emissive: 0xffd45a,
-    emissiveIntensity: 1.5,
-    transparent: true,
-    opacity: 0
-  });
-
-  sm.userData.anim = 1;
-  spk.push(mesh(new T.SphereGeometry(.25, 12, 12), sm, "plug", eng, x, 3.1, 0));
-
-  // Intake runner
-  const rm = glass(0x8fa3b0, .3, {
-    emissive: 0x3a8fb7,
-    emissiveIntensity: 0
-  });
-
-  rm.userData.anim = 1;
-
-  const rn = mesh(new T.CylinderGeometry(.28, .28, 1, 16), rm, "intake", eng);
-  link(rn, V(x - .45, 3.75, .3), V(x - .45, 3.9, 2.4));
-  runI.push(rm);
-
-  // Exhaust runner
-  const re = mesh(
-    new T.CylinderGeometry(.28, .28, 1, 16),
-    glass(0x9a6b4a, .4),
-    "exhaust",
-    eng
-  );
-
-  link(re, V(x + .45, 3.75, -.3), V(x + .45, 3.9, -2.4));
-});
-
-mesh(cylX(.1, 9.4), mat(0x3b4954), "camshaft", eng, 0, 5.3, 0);
-
-// Intake manifold
-const plenM = glass(0x8fa3b0, .3, {
-  emissive: 0x3a8fb7,
-  emissiveIntensity: 0
-});
-
-plenM.userData.anim = 1;
-
-mesh(cylX(.55, 9.6), plenM, "intake", eng, 0, 3.9, 2.4);
-mesh(cylX(.5, 1.6), glass(0x8fa3b0, .3), "intake", eng, -5.6, 3.9, 2.4);
-
-box(
-  1.4, 1.4, 1.4,
-  mat(0xb8893b, { metalness: .1, roughness: .8 }),
-  "intake", eng, -7.1, 3.9, 2.4
-);
-
-const plate = mesh(
-  new T.CircleGeometry(.5, 24),
-  mat(BR, { side: T.DoubleSide }),
-  "throttle",
-  eng,
-  -5.6, 3.9, 2.4
-);
-
-// Exhaust manifold
-const exM = glass(0x9a6b4a, .4, {
-  emissive: 0xe4572e,
-  emissiveIntensity: 0
-});
-
-exM.userData.anim = 1;
-
-mesh(cylX(.5, 19.4), exM, "exhaust", eng, 5.8, 3.9, -2.4);
-
-// Flywheel and clutch
-const fw = grp(eng, 5.2, 0, 0);
-
-mesh(cylX(1.5, .45, 48), mat(0x2b3a45), "flywheel", fw);
-
-{
-  const g = new T.TorusGeometry(1.5, .07, 6, 48);
-  g.rotateY(PI / 2);
-  mesh(g, mat(0xaab4ba), "flywheel", fw);
-}
-
-for (let j = 0; j < 5; j++) {
-  const a = j / 5 * PI * 2;
-  mesh(cylX(.22, .5, 12), mat(0x0b1620), "flywheel", fw, 0, Math.cos(a), Math.sin(a));
-}
-
-const cl = grp(eng, 5.75, 0, 0);
-mesh(cylX(1.2, .08, 40), mat(BR), "clutch", cl);
-
-const pp = grp(eng, 5.98, 0, 0);
-mesh(cylX(1.25, .18, 40), mat(0x52626d), "clutch", pp);
-
-[0, 1, 2].forEach(j => {
-  const a = j * PI * 2 / 3;
-  mesh(cylX(.09, .3, 8), mat(0xe6bf62), "clutch", pp, .24, Math.cos(a) * .9, Math.sin(a) * .9);
-});
-
-// Gearbox
-box(4.4, 5.4, 3.4, glass(0x5b6b76, .16), "gearbox", eng, 9.4, -1.3, 0, true);
-
-mesh(cylX(.2, 4), mat(0x8f9ca5), "gearbox", eng, 8.1, 0, 0);
-mesh(cylX(.2, 3.6), mat(0x8f9ca5), "gearbox", eng, 9.4, -2.2, 0);
-
-function mkGear(y) {
-  const w = grp(eng, 9.4, y, 0);
-  w.rotation.z = PI / 2;
-
-  const sp = grp(w);
-
-  mesh(new T.CylinderGeometry(1, 1, .7, 40), mat(0x2f4352), "gears", sp);
-
-  for (let j = 0; j < 28; j++) {
-    const a = j / 28 * PI * 2;
-    const t = mesh(
-      new T.BoxGeometry(.2, .7, .22),
-      mat(0xc9d3d9),
-      "gears",
-      sp,
-      Math.cos(a), 0, Math.sin(a)
-    );
-
-    t.rotation.y = -a;
-  }
-
-  box(.15, .72, .8, mat(BR), "gears", sp, .55, 0, 0);
-
-  return { w, sp };
-}
-
-const gI = mkGear(0);
-const gC = mkGear(-2.2);
-
-// Driveshaft and axles
-const ds = grp(eng, 14.7, -2.2, 0);
-
-mesh(cylX(.18, 8.6), mat(0x8f9ca5), "shaft", ds);
-box(.5, .1, .1, mat(BR), "shaft", ds, 0, .2, 0);
-
-{
-  const g = new T.CylinderGeometry(.15, .15, 7.2, 12);
-  g.rotateX(PI / 2);
-
-  mesh(g, mat(0x8f9ca5), "shaft", car, 19, -2, 0);
-  mesh(g.clone(), mat(0x8f9ca5), "shaft", car, -9, -2, 0);
-}
-
-// Wheels
-const wheels = [];
-const fpiv = [];
-
-[[19, 3.6], [19, -3.6], [-9, 3.6], [-9, -3.6]].forEach(([x, z]) => {
-  const front = x < 0;
-  const piv = grp(car, x, -2, z);
-
-  if (front) fpiv.push(piv);
-
-  const w = grp(piv);
-  wheels.push(w);
-
-  mesh(new T.TorusGeometry(1.45, .55, 16, 40), mat(0x1c252b, {
-    metalness: .1,
-    roughness: .9
-  }), "wheel", w);
-
-  const rim = new T.CylinderGeometry(1.1, 1.1, .5, 32);
-  rim.rotateX(PI / 2);
-
-  mesh(rim, mat(0xaab4ba), "wheel", w);
-
-  for (let j = 0; j < 5; j++) {
-    const s = box(.2, 2.1, .3, mat(0x52626d), "wheel", w, 0, 0, 0);
-    s.rotation.z = j * PI * 2 / 5;
-  }
-});
-
-// Car body and lights
-const shell = box(
-  32, 10, 7.6,
-  glass(0xe4572e, .07),
-  null,
-  car,
-  5, 2.6, 0,
-  true
-);
-
-shell.children[0].material.color.setHex(0xe4572e);
-shell.visible = false;
-
-mesh(new T.BoxGeometry(32, .3, 8), mat(0x1c252b), null, car, 5, -3.4, 0);
-
-[[-11, 2.6], [-11, -2.6]].forEach(([x, z]) => {
-  mesh(
-    new T.BoxGeometry(.4, .8, 1.4),
-    mat(0xfff3d0, { emissive: 0xffe9a8, emissiveIntensity: 1.4 }),
-    null,
-    shell,
-    x - 5, -1.5, z
-  );
-});
-
-[[21, 2.6], [21, -2.6]].forEach(([x, z]) => {
-  mesh(
-    new T.BoxGeometry(.4, .8, 1.4),
-    mat(0xff3b30, { emissive: 0xff3b30, emissiveIntensity: 1 }),
-    null,
-    shell,
-    x - 5, -1.5, z
-  );
-});
-
-// ---------- flowing particles ----------
-function pts(n, c) {
-  const g = new T.BufferGeometry();
-
-  g.setAttribute(
-    "position",
-    new T.BufferAttribute(new Float32Array(n * 3), 3)
-  );
-
-  const p = new T.Points(
-    g,
-    new T.PointsMaterial({ color: c, size: .45 })
-  );
-
-  p.frustumCulled = false;
-  eng.add(p);
-
-  return p;
-}
-
-const NP = 8;
-const pIn = pts(4 * NP, 0x8fd0ee);
-const pEx = pts(4 * NP, 0xff9a5c);
-
-const along = (a, u, arr, i) => {
-  const n = a.length - 1;
-  const f = u * n;
-  const s = Math.min(n - 1, Math.floor(f));
-  const t = f - s;
-
-  arr[i * 3] = a[s].x + (a[s + 1].x - a[s].x) * t;
-  arr[i * 3 + 1] = a[s].y + (a[s + 1].y - a[s].y) * t;
-  arr[i * 3 + 2] = a[s].z + (a[s + 1].z - a[s].z) * t;
-};
-
-const pathIn = X.map(x => [
-  V(-5.6, 3.9, 2.4),
-  V(x - .45, 3.9, 2.4),
-  V(x - .45, 3.9, .3),
-  V(x - .45, 3, 0)
-]);
-
-const pathEx = X.map(x => [
-  V(x + .45, 3, 0),
-  V(x + .45, 3.9, -.3),
-  V(x + .45, 3.9, -2.4),
-  V(15, 3.9, -2.4)
-]);
-
-// ---------- ground, grid and scenery ----------
-const ground = new T.Mesh(
-  new T.PlaneGeometry(4000, 4000),
-  mat(0x101c25, { metalness: 0, roughness: 1 })
-);
-
-ground.rotation.x = -PI / 2;
-ground.position.y = -4.02;
-scene.add(ground);
-
-const grid = new T.GridHelper(1600, 160, 0x2a4a5c, 0x1b3340);
-grid.position.y = -4;
-scene.add(grid);
-
-const pil = new T.InstancedMesh(
-  new T.BoxGeometry(2, 16, 2),
-  mat(0x3a5a6e, { metalness: .2 }),
-  160
-);
-
-scene.add(pil);
-
-const hs = (a, b) => {
-  const s = Math.sin(a * 127.1 + b * 311.7) * 43758.5453;
-  return s - Math.floor(s);
-};
-
-const dm = new T.Object3D();
-
-// ---------- parts list, highlight and hover ----------
-const list = $("#parts");
-let cur = null;
-
-Object.entries(PARTS).forEach(([k, [n]]) => {
-  const b = document.createElement("button");
-  b.type = "button";
-  b.textContent = n;
-  b.dataset.k = k;
-  b.onclick = () => pick(k);
-  list.appendChild(b);
-});
-
-function pick(k) {
-  cur = cur === k ? null : k;
-
-  ALL.forEach(m => {
-    const mt = m.material;
-
-    if (mt.userData.anim) return;
-
-    const on = m.userData.k === cur;
-
-    if (cur) {
-      mt.transparent = true;
-      mt.opacity = on
-        ? (mt.userData.tr ? Math.max(mt.userData.o, .5) : 1)
-        : mt.userData.o * .18;
-    } else {
-      mt.opacity = mt.userData.o;
-      mt.transparent = mt.userData.tr;
-    }
-
-    if (mt.emissive) {
-      mt.emissive.setHex(on ? 0xff6a2a : 0);
-      mt.emissiveIntensity = on ? .6 : 1;
-    }
-  });
-
-  list.querySelectorAll("button").forEach(b =>
-    b.classList.toggle("sel", b.dataset.k === cur)
-  );
-
-  $("#detail").innerHTML = cur
-    ? `<b>${PARTS[cur][0]}</b>${PARTS[cur][1]}`
-    : "Pick a part, or click it in the 3D view.";
-}
-
-const ray = new T.Raycaster();
-const mp = new T.Vector2();
-
-function hit(e) {
-  const r = cv.getBoundingClientRect();
-
-  if (!r.width || !r.height) return null;
-
-  mp.set(
-    (e.clientX - r.left) / r.width * 2 - 1,
-    -((e.clientY - r.top) / r.height) * 2 + 1
-  );
-
-  ray.setFromCamera(mp, cam);
-
-  const hs2 = ray.intersectObjects(ALL, false).filter(i =>
-    i.object.userData.k && i.object.visible
-  );
-
-  const SH = ["block", "crankcase", "gearbox", "head"];
-  const h = hs2.find(i => !SH.includes(i.object.userData.k)) || hs2[0];
-
-  return h ? h.object.userData.k : null;
-}
-
-const tip = $("#tip");
-
-// ---------- camera and input ----------
-const CAM = {
-  az: .9,
-  pol: 1.2,
-  d: 40,
-  drag: false,
-  moved: 0,
-  tgt: new T.Vector3()
-};
-
-let MODE = "engine";
-
-cv.addEventListener("pointerdown", e => {
-  CAM.drag = true;
-  CAM.moved = 0;
-  cv.setPointerCapture(e.pointerId);
-});
-
-cv.addEventListener("pointermove", e => {
-  if (CAM.drag) {
-    CAM.az -= e.movementX * .006;
-    CAM.pol = Math.min(1.5, Math.max(.15, CAM.pol - e.movementY * .006));
-    CAM.moved += Math.abs(e.movementX) + Math.abs(e.movementY);
-    tip.style.display = "none";
+/* ============================================================
+   FOUR-CYLINDER ENGINE SIMULATOR — UPGRADED SCRIPT
+   Three.js r128
+   Complete replacement for script.js
+   ============================================================ */
+
+(() => {
+  "use strict";
+
+  // ------------------------------------------------------------
+  // DOM ELEMENTS
+  // ------------------------------------------------------------
+
+  const $ = (id) => document.getElementById(id);
+
+  const view = $("view");
+  const tip = $("tip");
+  const partsPanel = $("parts");
+  const detailPanel = $("detail");
+
+  const startButton = $("start");
+  const throttleInput = $("throttle");
+  const throttleOutput = $("tOut");
+  const slowInput = $("slow");
+  const autoInput = $("auto");
+
+  const engineModeButton = $("mEngine");
+  const driveModeButton = $("mDrive");
+
+  const gearsElement = $("gears");
+  const gearText = $("gt");
+
+  const rpmElement = $("rpm");
+  const speedElement = $("kph");
+  const powerBar = $("bar");
+
+  const chipsElement = $("chips");
+  const strokesElement = $("strokes");
+
+  if (!view || !window.THREE) {
+    console.error("Engine Simulator: Three.js or #view was not found.");
+    if (tip) tip.textContent = "Unable to initialize 3D engine. Check Three.js.";
     return;
   }
 
-  const k = hit(e);
-  tip.style.display = k ? "block" : "none";
+  // ------------------------------------------------------------
+  // PART INFORMATION
+  // ------------------------------------------------------------
 
-  if (k) {
-    const r = cv.parentElement.getBoundingClientRect();
+  const PARTS = {
+    block: [
+      "Cylinder Block",
+      "The main body of the engine. It contains four cylinders where the pistons move up and down."
+    ],
+    head: [
+      "Cylinder Head",
+      "The top section of the engine. It contains the valves, spark plugs, and combustion chambers."
+    ],
+    chamber: [
+      "Combustion Chamber",
+      "The space above each piston. Air and fuel are compressed here before ignition."
+    ],
+    piston: [
+      "Piston",
+      "Moves up and down inside the cylinder. Combustion pushes it downward, creating mechanical power."
+    ],
+    rod: [
+      "Connecting Rod",
+      "Connects the piston to the crankshaft and transfers the piston's movement."
+    ],
+    crank: [
+      "Crankshaft",
+      "Converts the pistons' up-and-down movement into rotational movement."
+    ],
+    valve: [
+      "Intake and Exhaust Valves",
+      "Intake valves allow air and fuel into the cylinder. Exhaust valves let burned gases escape."
+    ],
+    cam: [
+      "Camshaft",
+      "Controls when the intake and exhaust valves open and close."
+    ],
+    spark: [
+      "Spark Plug",
+      "Creates an electrical spark that ignites the compressed air-fuel mixture."
+    ],
+    flywheel: [
+      "Flywheel",
+      "Stores rotational energy and helps keep the crankshaft spinning smoothly."
+    ],
+    clutch: [
+      "Clutch",
+      "Connects and disconnects engine power from the transmission."
+    ],
+    transmission: [
+      "Transmission",
+      "Uses different gear ratios to control the relationship between engine RPM and wheel speed."
+    ],
+    intake: [
+      "Intake Manifold",
+      "Distributes incoming air to the four cylinders."
+    ],
+    exhaust: [
+      "Exhaust Manifold",
+      "Collects exhaust gases from the cylinders and directs them away from the engine."
+    ],
+    radiator: [
+      "Radiator",
+      "Transfers heat from the engine coolant into the surrounding air."
+    ],
+    wheel: [
+      "Drive Wheels",
+      "Receive rotational power through the transmission and drivetrain."
+    ]
+  };
 
-    tip.textContent = PARTS[k][0];
-    tip.style.left = e.clientX - r.left + 14 + "px";
-    tip.style.top = e.clientY - r.top + 12 + "px";
-  }
-});
+  // ------------------------------------------------------------
+  // THREE.JS SETUP
+  // ------------------------------------------------------------
 
-cv.addEventListener("pointerup", e => {
-  CAM.drag = false;
+  let scene;
+  let camera;
+  let renderer;
+  let world;
+  let engineGroup;
+  let carGroup;
+  let engineParts = [];
+  let clickableParts = [];
+  let animationFrame = null;
 
-  if (CAM.moved < 5) {
-    const k = hit(e);
-    if (k) pick(k);
-  }
-});
+  const raycaster = new THREE.Raycaster();
+  const pointer = new THREE.Vector2();
+  const clock = new THREE.Clock();
 
-cv.addEventListener("pointercancel", () => {
-  CAM.drag = false;
-});
+  const COLORS = {
+    metal: 0x8997a7,
+    darkMetal: 0x354354,
+    aluminum: 0xb9c6d2,
+    orange: 0xff7838,
+    blue: 0x2589ff,
+    red: 0xff3434,
+    yellow: 0xffcc45,
+    black: 0x151b24,
+    rubber: 0x101319,
+    white: 0xeaf3ff,
+    green: 0x39e68b
+  };
 
-cv.addEventListener("wheel", e => {
-  e.preventDefault();
-  CAM.d = Math.min(140, Math.max(10, CAM.d * (1 + e.deltaY * .001)));
-}, { passive: false });
+  const state = {
+    running: false,
+    driveMode: false,
+    automatic: true,
+    throttle: 0.25,
+    rpm: 850,
+    speed: 0,
+    gear: 1,
+    clutch: 1,
+    engineAngle: 0,
+    camAngle: 0,
+    elapsed: 0,
+    slowMotion: 1,
+    selected: null,
+    mouseDown: false,
+    dragging: false,
+    lastX: 0,
+    lastY: 0,
+    cameraAngle: -0.7,
+    cameraElevation: 0.55,
+    cameraDistance: 11,
+    steering: 0,
+    keys: {}
+  };
 
-function setMode(m) {
-  MODE = m;
+  const CYLINDERS = 4;
 
-  $("#mEngine").classList.toggle("on", m === "engine");
-  $("#mDrive").classList.toggle("on", m === "drive");
+  // Firing order: 1 - 3 - 4 - 2
+  const FIRING_ORDER = [0, 2, 3, 1];
 
-  shell.visible = m === "drive";
+  // Crankshaft firing offsets in degrees.
+  const FIRING_OFFSETS = [0, 540, 180, 360];
 
-  if (m === "drive") {
-    CAM.az = PI / 2;
-    CAM.pol = 1.15;
-    CAM.d = 70;
-  } else {
-    CAM.az = .9;
-    CAM.pol = 1.2;
-    CAM.d = 40;
-  }
-}
+  const clamp = (v, min, max) =>
+    Math.max(min, Math.min(max, v));
 
-$("#mEngine").onclick = () => setMode("engine");
-$("#mDrive").onclick = () => setMode("drive");
+  const lerp = (a, b, t) =>
+    a + (b - a) * t;
 
-// ---------- responsive renderer ----------
-let resizeFrame = 0;
+  const smooth = (a, b, t) =>
+    a + (b - a) * clamp(t, 0, 1);
 
-function fit() {
-  const stage = cv.parentElement;
-  if (!stage) return;
+  // ------------------------------------------------------------
+  // INITIALIZATION
+  // ------------------------------------------------------------
 
-  const rect = stage.getBoundingClientRect();
-  const w = Math.max(1, Math.floor(rect.width));
-  const h = Math.max(1, Math.floor(rect.height));
+  function init() {
+    try {
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x080e19);
+      scene.fog = new THREE.Fog(0x080e19, 17, 42);
 
-  if (rect.width <= 0 || rect.height <= 0) return;
+      camera = new THREE.PerspectiveCamera(
+        42,
+        view.clientWidth / Math.max(view.clientHeight, 1),
+        0.1,
+        100
+      );
 
-  ren.setSize(w, h, false);
+      renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        alpha: false,
+        powerPreference: "high-performance"
+      });
 
-  cam.aspect = w / h;
-  cam.updateProjectionMatrix();
-}
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      renderer.setSize(view.clientWidth, view.clientHeight);
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      renderer.outputEncoding = THREE.sRGBEncoding;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.15;
 
-function requestFit() {
-  if (resizeFrame) cancelAnimationFrame(resizeFrame);
+      view.innerHTML = "";
+      view.appendChild(renderer.domElement);
 
-  resizeFrame = requestAnimationFrame(() => {
-    resizeFrame = 0;
-    fit();
-  });
-}
+      createLighting();
+      createEnvironment();
+      createEngine();
+      createCar();
+      createControls();
+      createPartsList();
+      updateCamera();
 
-const resizeObserver = new ResizeObserver(requestFit);
-
-// Observe the parent stage, not the canvas itself.
-resizeObserver.observe(cv.parentElement);
-
-window.addEventListener("resize", requestFit);
-window.addEventListener("orientationchange", requestFit);
-
-fit();
-
-// ---------- controls and state ----------
-const S = {
-  run: false,
-  rpm: 0,
-  tot: 0,
-  g: 0,
-  sh: 0,
-  v: 0,
-  ca: 0,
-  pu: [0, 0, 0, 0],
-  px: 0,
-  pz: 0,
-  yaw: 0,
-  steer: 0
-};
-
-const thr = $("#throttle");
-const KEY = {};
-
-const setRun = on => {
-  S.run = on;
-  $("#start").textContent = on ? "Stop engine" : "Start engine";
-  $("#start").classList.toggle("on", on);
-};
-
-$("#start").onclick = () => setRun(!S.run);
-
-const gb = $("#gears");
-
-["N", 1, 2, 3, 4, 5].forEach((n, i) => {
-  const b = document.createElement("button");
-  b.type = "button";
-  b.textContent = n;
-  b.onclick = () => setGear(i);
-  gb.appendChild(b);
-});
-
-const chips = $("#chips");
-
-for (let i = 0; i < 4; i++) {
-  chips.appendChild(document.createElement("span"));
-}
-
-function setGear(g) {
-  g = Math.max(0, Math.min(5, g));
-
-  if (g !== S.g) S.sh = .45;
-
-  S.g = g;
-
-  gb.querySelectorAll("button").forEach((b, i) =>
-    b.classList.toggle("on", i === g)
-  );
-
-  const rho = RAT[g] || 1;
-  const ri = 2.2 / (1 + rho);
-  const rc = 2.2 - ri;
-
-  gI.sp.scale.set(ri, 1, ri);
-  gC.sp.scale.set(rc, 1, rc);
-
-  [gI, gC].forEach(o => {
-    o.sp.traverse(m => {
-      if (m.material) {
-        m.material.userData.o = g ? 1 : .45;
-        m.material.transparent = !g;
-        m.material.opacity = g ? 1 : .45;
+      if (tip) {
+        tip.textContent = "Drag to rotate • Scroll to zoom • Click components to inspect";
       }
+
+      window.addEventListener("resize", resize);
+
+      if (window.ResizeObserver) {
+        const observer = new ResizeObserver(resize);
+        observer.observe(view);
+      }
+
+      animate();
+
+    } catch (error) {
+      console.error("Engine initialization failed:", error);
+      if (tip) tip.textContent = "3D engine failed to initialize. Check the console.";
+    }
+  }
+
+  // ------------------------------------------------------------
+  // LIGHTING
+  // ------------------------------------------------------------
+
+  function createLighting() {
+    scene.add(new THREE.AmbientLight(0xffffff, 0.65));
+
+    const key = new THREE.DirectionalLight(0xffffff, 2.2);
+    key.position.set(5, 10, 8);
+    key.castShadow = true;
+    key.shadow.mapSize.set(2048, 2048);
+    scene.add(key);
+
+    const blueLight = new THREE.PointLight(0x2589ff, 30, 20);
+    blueLight.position.set(-5, 3, -3);
+    scene.add(blueLight);
+
+    const orangeLight = new THREE.PointLight(0xff7838, 18, 15);
+    orangeLight.position.set(2, 2, 5);
+    scene.add(orangeLight);
+  }
+
+  // ------------------------------------------------------------
+  // MATERIALS AND GEOMETRY HELPERS
+  // ------------------------------------------------------------
+
+  function material(color, metalness = 0.3, roughness = 0.45) {
+    return new THREE.MeshStandardMaterial({
+      color,
+      metalness,
+      roughness
     });
-  });
-
-  $("#gt").textContent = g
-    ? `Gear ${g}: ${rho}:1 ratio`
-    : "Neutral: engine is not connected to the wheels";
-}
-
-setGear(0);
-
-window.addEventListener("keydown", e => {
-  if (e.target.tagName === "INPUT" && e.target.type !== "range") return;
-
-  const k = e.key.toLowerCase();
-  KEY[k] = true;
-
-  if (/^[0-5]$/.test(k)) setGear(+k);
-  if (k === "e") setGear(S.g + 1);
-  if (k === "q") setGear(S.g - 1);
-
-  if (k === "r") {
-    S.px = 0;
-    S.pz = 0;
-    S.yaw = 0;
-    S.v = 0;
   }
 
-  if (k.startsWith("arrow") || k === " ") {
-    e.preventDefault();
-  }
-});
+  const mats = {
+    aluminum: material(COLORS.aluminum, 0.85, 0.25),
+    metal: material(COLORS.metal, 0.8, 0.3),
+    dark: material(COLORS.darkMetal, 0.75, 0.35),
+    black: material(COLORS.black, 0.25, 0.55),
+    orange: material(COLORS.orange, 0.5, 0.3),
+    blue: material(COLORS.blue, 0.45, 0.25),
+    rubber: material(COLORS.rubber, 0.05, 0.9),
+    gold: material(0xd5a52c, 0.8, 0.25),
+    red: material(COLORS.red, 0.35, 0.3),
+    white: material(COLORS.white, 0.3, 0.35)
+  };
 
-window.addEventListener("keyup", e => {
-  KEY[e.key.toLowerCase()] = false;
-});
+  function addMesh(parent, geometry, mat, position, name) {
+    const mesh = new THREE.Mesh(geometry, mat);
 
-window.addEventListener("blur", () => {
-  Object.keys(KEY).forEach(k => KEY[k] = false);
-});
+    mesh.position.set(...position);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
 
-const lift = (p, a, b) =>
-  p > a && p < b
-    ? 8 * Math.sin(PI * (p - a) / (b - a))
-    : 0;
+    if (name) mesh.userData.part = name;
 
-const wr = V(0, 0, 0);
-const tmp = V(0, 0, 0);
+    parent.add(mesh);
 
-// ---------- simulation ----------
-function step(dt) {
-  // Pedals
-  const gasKey = KEY.w || KEY.arrowup;
-  const brake = KEY.s || KEY.arrowdown || KEY[" "];
-
-  if (gasKey) {
-    thr.value = Math.min(100, +thr.value + 260 * dt);
-    if (!S.run) setRun(true);
-  } else if (MODE === "drive") {
-    thr.value = Math.max(0, +thr.value - 320 * dt);
-  }
-
-  const t = thr.value / 100;
-  $("#tOut").textContent = Math.round(t * 100) + "%";
-
-  // Engine and car physics
-  const rho = RAT[S.g] || 1;
-  const eg = S.g > 0 && S.sh <= 0;
-  const wl = S.v / .114 * FD * rho;
-
-  S.sh = Math.max(0, S.sh - dt);
-
-  let rt = S.run
-    ? (eg ? Math.max(wl, 800 + t * 3000) : 800 + t * 5200)
-    : 0;
-
-  rt *= 1 - .15 * (S.sh > 0);
-
-  S.rpm += (rt - S.rpm) * Math.min(1, dt * (S.run ? 4 : 1.5));
-
-  if (S.rpm < 2 && !S.run) S.rpm = 0;
-
-  let a = 0;
-
-  if (eg && S.run && wl < 6400) {
-    a += t * (1.2 - S.rpm / 6500) * 10 * rho;
-  }
-
-  a -= .0003 * S.v * S.v;
-  a -= eg ? (S.run && t > .05 ? .5 : 1 + S.rpm / 2000) : .6;
-
-  if (eg && !S.run) a -= 6;
-  if (brake) a -= 55;
-
-  S.v = Math.max(0, S.v + a * dt);
-
-  const u = S.v * 1.2;
-  const K = $("#slow").checked ? .006 : .02;
-
-  const tgt =
-    (KEY.a || KEY.arrowleft ? 1 : 0) -
-    (KEY.d || KEY.arrowright ? 1 : 0);
-
-  S.steer += (tgt - S.steer) * Math.min(1, dt * 6);
-  S.yaw += u / 28 * Math.tan(.5 * S.steer) * dt;
-
-  S.px -= Math.cos(S.yaw) * u * dt;
-  S.pz += Math.sin(S.yaw) * u * dt;
-
-  car.position.set(S.px, 0, S.pz);
-  car.rotation.y = S.yaw;
-
-  S.tot += S.rpm * 6 * dt * K;
-  S.ca -= S.v / .114 * FD * 6 * dt * K;
-
-  wheels.forEach(w => w.rotation.z += u * dt / 2);
-  fpiv.forEach(p => p.rotation.y = S.steer * .5);
-
-  // Engine components
-  const ph = S.tot % 720;
-  const pi = pIn.geometry.attributes.position.array;
-  const pe = pEx.geometry.attributes.position.array;
-
-  X.forEach((x, i) => {
-    const psi = (ph - OFF[i] + 720) % 720;
-    const th = psi % 360;
-    const ang = th * PI / 180;
-    const sn = Math.sin(ang);
-    const cs = Math.cos(ang);
-
-    const py = RC * cs + Math.sqrt(LR * LR - (RC * sn) ** 2);
-    const pin = V(x, RC * cs, RC * sn);
-
-    crk[i].rotation.x = ang;
-    pist[i].position.y = py;
-
-    link(rodM[i], V(x, py, 0), pin);
-    bigM[i].position.copy(pin);
-
-    const li = lift(psi, 10, 170);
-    const le = lift(psi, 550, 710);
-
-    vi[i].position.y = -li * .04;
-    ve[i].position.y = -le * .04;
-
-    ci[i].rotation.x = (psi / 2 - 45) * PI / 180;
-    ce[i].rotation.x = (psi / 2 - 315) * PI / 180;
-
-    const s = Math.floor(psi / 180);
-    const f = (psi % 180) / 180;
-    const crown = py + .55;
-
-    gas[i].scale.y = Math.max(.01, 3.3 - crown);
-    gas[i].position.y = (crown + 3.3) / 2;
-
-    const op = [
-      .25 + .35 * f,
-      .55 + .35 * f,
-      .95 - .4 * f,
-      .5 - .3 * f
-    ][s] * (s < 2 ? .4 + .6 * t : 1);
-
-    gasM[i].color.setHex(FILL[s]);
-    gasM[i].opacity = S.rpm > 1 ? op : 0;
-    gasM[i].emissive.setHex(s === 2 ? 0xe4572e : 0);
-    gasM[i].emissiveIntensity = s === 2 ? 1 - f * .7 : 0;
-
-    spk[i].material.opacity =
-      S.rpm > 1 && psi > 345 && psi < 372 ? 1 : 0;
-
-    runI[i].emissiveIntensity = li > .3 ? .4 + .8 * t : 0;
-
-    S.pu[i] = (S.pu[i] + dt * (.5 + 1.2 * t)) % 1;
-
-    for (let j = 0; j < NP; j++) {
-      const n = i * NP + j;
-      const u1 = (S.pu[i] + j / NP) % 1;
-
-      if (S.rpm > 1 && li > .3) {
-        along(pathIn[i], u1, pi, n);
-      } else {
-        pi[n * 3 + 1] = -999;
-      }
-
-      if (S.rpm > 1 && le > .3) {
-        along(pathEx[i], u1, pe, n);
-      } else {
-        pe[n * 3 + 1] = -999;
-      }
+    if (name) {
+      engineParts.push(mesh);
+      clickableParts.push(mesh);
     }
 
-    if (i === 0) {
-      document.querySelectorAll("#strokes li").forEach((q, j) =>
-        q.classList.toggle("act", S.rpm > 1 && j === s)
+    return mesh;
+  }
+
+  function box(parent, w, h, d, mat, x, y, z, name) {
+    return addMesh(
+      parent,
+      new THREE.BoxGeometry(w, h, d),
+      mat,
+      [x, y, z],
+      name
+    );
+  }
+
+  function cylinder(parent, radiusTop, radiusBottom, height, mat, x, y, z, name, segments = 24) {
+    return addMesh(
+      parent,
+      new THREE.CylinderGeometry(
+        radiusTop,
+        radiusBottom,
+        height,
+        segments
+      ),
+      mat,
+      [x, y, z],
+      name
+    );
+  }
+
+  function sphere(parent, radius, mat, x, y, z, name) {
+    return addMesh(
+      parent,
+      new THREE.SphereGeometry(radius, 20, 14),
+      mat,
+      [x, y, z],
+      name
+    );
+  }
+
+  function rod(parent, start, end, radius, mat, name) {
+    const a = new THREE.Vector3(...start);
+    const b = new THREE.Vector3(...end);
+    const direction = new THREE.Vector3().subVectors(b, a);
+
+    const mesh = addMesh(
+      parent,
+      new THREE.CylinderGeometry(
+        radius,
+        radius,
+        direction.length(),
+        12
+      ),
+      mat,
+      [
+        (a.x + b.x) / 2,
+        (a.y + b.y) / 2,
+        (a.z + b.z) / 2
+      ],
+      name
+    );
+
+    mesh.quaternion.setFromUnitVectors(
+      new THREE.Vector3(0, 1, 0),
+      direction.normalize()
+    );
+
+    return mesh;
+  }
+
+  function ring(parent, radius, tube, mat, x, y, z, name) {
+    return addMesh(
+      parent,
+      new THREE.TorusGeometry(radius, tube, 8, 48),
+      mat,
+      [x, y, z],
+      name
+    );
+  }
+
+  // ------------------------------------------------------------
+  // ENVIRONMENT
+  // ------------------------------------------------------------
+
+  function createEnvironment() {
+    const floor = new THREE.Mesh(
+      new THREE.PlaneGeometry(200, 200),
+      material(0x111b2a, 0.25, 0.85)
+    );
+
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = -1.8;
+    floor.receiveShadow = true;
+    scene.add(floor);
+
+    const grid = new THREE.GridHelper(100, 100, 0x244365, 0x172b43);
+    grid.position.y = -1.79;
+    scene.add(grid);
+
+    const platform = new THREE.Mesh(
+      new THREE.BoxGeometry(9, 0.18, 6),
+      material(0x1c2a3c, 0.65, 0.4)
+    );
+
+    platform.position.set(0, -1.7, 0);
+    platform.receiveShadow = true;
+    scene.add(platform);
+
+    const edgeMat = material(0x2589ff, 0.6, 0.3);
+
+    for (let x of [-4.4, 4.4]) {
+      const edge = box(
+        scene,
+        0.045,
+        0.035,
+        5.8,
+        edgeMat,
+        x,
+        -1.57,
+        0
+      );
+    }
+  }
+
+  // ------------------------------------------------------------
+  // ENGINE MODEL
+  // ------------------------------------------------------------
+
+  const moving = {
+    crank: null,
+    flywheel: null,
+    cams: [],
+    pistons: [],
+    rods: [],
+    intakeValves: [],
+    exhaustValves: [],
+    sparks: [],
+    wheels: [],
+    fans: [],
+    exhaustParticles: [],
+    intakeParticles: []
+  };
+
+  function createEngine() {
+    engineGroup = new THREE.Group();
+    scene.add(engineGroup);
+
+    const base = box(
+      engineGroup,
+      3.5,
+      0.45,
+      2.15,
+      mats.dark,
+      0,
+      -1.1,
+      0,
+      "block"
+    );
+
+    // Engine mounting rails.
+    for (const z of [-0.95, 0.95]) {
+      box(engineGroup, 3.7, 0.12, 0.15, mats.metal, 0, -1.34, z);
+    }
+
+    // Main cylinder block.
+    box(engineGroup, 3.15, 2.0, 1.75, mats.aluminum, 0, 0, 0, "block");
+
+    // Cylinder banks.
+    for (let i = 0; i < CYLINDERS; i++) {
+      const x = -1.15 + i * 0.77;
+
+      const bore = cylinder(
+        engineGroup,
+        0.33,
+        0.33,
+        1.65,
+        mats.dark,
+        x,
+        0.05,
+        0,
+        "chamber",
+        32
+      );
+
+      bore.material = material(0x344355, 0.75, 0.25);
+
+      // Cylinder liner.
+      ring(engineGroup, 0.31, 0.035, mats.aluminum, x, 0.88, 0, "block");
+
+      // Spark plugs.
+      cylinder(
+        engineGroup,
+        0.075,
+        0.075,
+        0.5,
+        mats.white,
+        x,
+        1.27,
+        0,
+        "spark",
+        12
+      );
+
+      sphere(engineGroup, 0.09, mats.gold, x, 1.03, 0, "spark");
+
+      const spark = sphere(
+        engineGroup,
+        0.13,
+        material(0x54c9ff, 0.1, 0.2),
+        x,
+        0.94,
+        0,
+        "spark"
+      );
+
+      spark.material.emissive = new THREE.Color(0x168bff);
+      spark.material.emissiveIntensity = 0;
+      moving.sparks.push(spark);
+
+      // Pistons.
+      const piston = cylinder(
+        engineGroup,
+        0.28,
+        0.28,
+        0.26,
+        mats.metal,
+        x,
+        0,
+        0,
+        "piston",
+        32
+      );
+
+      ring(engineGroup, 0.275, 0.018, mats.white, x, 0, 0, "piston");
+
+      // Piston rings.
+      const rings = [];
+      for (let r = 0; r < 3; r++) {
+        const pr = ring(
+          engineGroup,
+          0.285,
+          0.014,
+          mats.dark,
+          x,
+          0,
+          0,
+          "piston"
+        );
+        rings.push(pr);
+      }
+
+      // Connecting rod.
+      const connectingRod = rod(
+        engineGroup,
+        [x, -0.15, 0],
+        [x, -0.85, 0],
+        0.085,
+        mats.gold,
+        "rod"
+      );
+
+      const rodTop = sphere(engineGroup, 0.13, mats.dark, x, -0.15, 0, "rod");
+
+      const rodBottom = sphere(engineGroup, 0.14, mats.gold, x, -0.85, 0, "rod");
+
+      moving.pistons.push({
+        mesh: piston,
+        rings,
+        x,
+        offset: FIRING_OFFSETS[i] * Math.PI / 180
+      });
+
+      moving.rods.push({
+        mesh: connectingRod,
+        top: rodTop,
+        bottom: rodBottom,
+        x,
+        offset: FIRING_OFFSETS[i] * Math.PI / 180
+      });
+
+      // Intake and exhaust valves.
+      const intakeValve = cylinder(
+        engineGroup,
+        0.055,
+        0.055,
+        0.55,
+        mats.blue,
+        x - 0.15,
+        1.08,
+        0.22,
+        "valve",
+        12
+      );
+
+      const exhaustValve = cylinder(
+        engineGroup,
+        0.055,
+        0.055,
+        0.55,
+        mats.orange,
+        x + 0.15,
+        1.08,
+        0.22,
+        "valve",
+        12
+      );
+
+      moving.intakeValves.push(intakeValve);
+      moving.exhaustValves.push(exhaustValve);
+
+      // Valve springs.
+      for (let v of [intakeValve, exhaustValve]) {
+        ring(
+          engineGroup,
+          0.09,
+          0.018,
+          mats.metal,
+          v.position.x,
+          1.38,
+          0.22,
+          "valve"
+        );
+      }
+
+      // Intake ports.
+      rod(
+        engineGroup,
+        [x - 0.15, 1.0, 0.2],
+        [x - 0.15, 1.0, 0.85],
+        0.11,
+        mats.blue,
+        "intake"
+      );
+
+      // Exhaust ports.
+      rod(
+        engineGroup,
+        [x + 0.15, 1.0, -0.2],
+        [x + 0.15, 1.0, -0.85],
+        0.11,
+        mats.orange,
+        "exhaust"
       );
     }
 
-    const c = chips.children[i];
-    c.dataset.s = S.rpm > 1 ? s : "";
-    c.textContent = `Cylinder ${i + 1}: ${S.rpm > 1 ? NAMES[s] : "stopped"}`;
-  });
+    // Cylinder head.
+    box(engineGroup, 3.5, 0.4, 1.95, mats.metal, 0, 1.4, 0, "head");
 
-  pIn.geometry.attributes.position.needsUpdate = true;
-  pEx.geometry.attributes.position.needsUpdate = true;
+    // Head bolts.
+    for (let i = 0; i < 8; i++) {
+      const x = -1.45 + i * 0.415;
+      cylinder(
+        engineGroup,
+        0.065,
+        0.065,
+        0.1,
+        mats.gold,
+        x,
+        1.64,
+        0.83,
+        "head",
+        8
+      );
+    }
 
-  plate.rotation.y = 1.45 * (1 - t);
+    // Valve cover.
+    const cover = box(
+      engineGroup,
+      3.35,
+      0.38,
+      1.45,
+      mats.dark,
+      0,
+      1.85,
+      0,
+      "head"
+    );
 
-  plenM.emissiveIntensity = S.rpm > 1 ? .15 + .5 * t : 0;
-  exM.emissiveIntensity = S.rpm > 1 ? .1 + .9 * S.rpm / 6500 : 0;
+    box(engineGroup, 2.8, 0.05, 0.08, mats.orange, 0, 2.05, 0, "head");
 
-  fw.rotation.x = cl.rotation.x = S.tot * PI / 180;
+    // Camshafts.
+    for (const z of [-0.42, 0.42]) {
+      const cam = cylinder(
+        engineGroup,
+        0.11,
+        0.11,
+        3.4,
+        mats.gold,
+        0,
+        1.85,
+        z,
+        "cam",
+        20
+      );
 
-  const gap = S.sh > 0
-    ? Math.sin(PI * (1 - S.sh / .45))
-    : 0;
+      cam.rotation.z = Math.PI / 2;
+      moving.cams.push(cam);
 
-  pp.position.x = 5.98 + gap * .7;
+      for (let i = 0; i < CYLINDERS; i++) {
+        const x = -1.15 + i * 0.77;
+        const lobe = sphere(
+          engineGroup,
+          0.17,
+          mats.orange,
+          x,
+          1.85,
+          z,
+          "cam"
+        );
+        lobe.userData.camOffset = i * Math.PI / 2;
+        moving.cams.push(lobe);
+      }
+    }
 
-  gI.sp.rotation.y = S.tot * PI / 180;
-  gC.sp.rotation.y = S.ca * PI / 180;
-  ds.rotation.x = S.ca * PI / 180;
+    // Crankshaft.
+    moving.crank = cylinder(
+      engineGroup,
+      0.15,
+      0.15,
+      3.9,
+      mats.gold,
+      0,
+      -1.0,
+      0,
+      "crank",
+      20
+    );
 
-  $("#rpm").textContent = Math.round(S.rpm);
-  $("#kph").textContent = Math.round(S.v);
-  $("#bar").style.width = Math.min(100, S.rpm / 65) + "%";
+    moving.crank.rotation.z = Math.PI / 2;
 
-  // Scenery follows the car
-  grid.position.x = Math.floor(S.px / 10) * 10;
-  grid.position.z = Math.floor(S.pz / 10) * 10;
+    // Crank throws.
+    for (let i = 0; i < CYLINDERS; i++) {
+      const x = -1.15 + i * 0.77;
 
-  const ca0 = Math.floor(S.px / 60);
-  const cb0 = Math.floor(S.pz / 60);
+      cylinder(
+        engineGroup,
+        0.2,
+        0.2,
+        0.12,
+        mats.gold,
+        x,
+        -1.0,
+        0,
+        "crank",
+        20
+      );
+    }
 
-  let n = 0;
+    // Flywheel.
+    moving.flywheel = cylinder(
+      engineGroup,
+      0.9,
+      0.9,
+      0.18,
+      mats.dark,
+      1.95,
+      -1.0,
+      0,
+      "flywheel",
+      48
+    );
 
-  for (let da = -6; da <= 6; da++) {
-    for (let db = -6; db <= 6; db++) {
-      const A = ca0 + da;
-      const B = cb0 + db;
-      const h = hs(A, B);
+    moving.flywheel.rotation.z = Math.PI / 2;
 
-      if (h > .6 && n < 160 && Math.max(Math.abs(A), Math.abs(B)) > 1) {
-        dm.position.set(
-          A * 60 + h * 97 % 40 + 10,
-          4,
-          B * 60 + (h * 53 % 1) * 40 + 10
+    ring(engineGroup, 0.78, 0.07, mats.gold, 1.95, -1.0, 0, "flywheel");
+
+    // Starter motor.
+    const starter = cylinder(
+      engineGroup,
+      0.18,
+      0.18,
+      0.9,
+      mats.black,
+      1.6,
+      -0.5,
+      0.9,
+      "flywheel",
+      20
+    );
+
+    starter.rotation.x = Math.PI / 2;
+
+    // Oil pan.
+    box(engineGroup, 2.9, 0.45, 1.6, mats.dark, 0, -1.55, 0, "block");
+
+    // Oil drain plug.
+    cylinder(
+      engineGroup,
+      0.08,
+      0.08,
+      0.18,
+      mats.gold,
+      0,
+      -1.8,
+      0.75,
+      "block",
+      12
+    );
+
+    // Intake manifold.
+    box(engineGroup, 3.0, 0.25, 0.4, mats.blue, 0, 1.1, 1.15, "intake");
+
+    // Exhaust manifold.
+    box(engineGroup, 3.0, 0.25, 0.4, mats.orange, 0, 1.1, -1.15, "exhaust");
+
+    // Throttle body.
+    cylinder(
+      engineGroup,
+      0.3,
+      0.3,
+      0.55,
+      mats.dark,
+      -1.65,
+      1.1,
+      1.15,
+      "intake"
+    ).rotation.x = Math.PI / 2;
+
+    // Transmission.
+    const transmission = sphere(
+      engineGroup,
+      1,
+      mats.dark,
+      2.85,
+      -0.9,
+      0,
+      "transmission"
+    );
+
+    transmission.scale.set(1.1, 0.9, 1.0);
+
+    // Transmission housing.
+    box(
+      engineGroup,
+      1.6,
+      1.3,
+      1.6,
+      mats.dark,
+      2.75,
+      -1.0,
+      0,
+      "transmission"
+    );
+
+    // Transmission output shaft.
+    cylinder(
+      engineGroup,
+      0.12,
+      0.12,
+      1.6,
+      mats.gold,
+      3.5,
+      -1.0,
+      0,
+      "transmission"
+    ).rotation.z = Math.PI / 2;
+
+    // Radiator.
+    box(engineGroup, 0.35, 1.7, 1.8, mats.dark, -2.1, 0.3, 0, "radiator");
+
+    // Radiator fins.
+    for (let i = 0; i < 13; i++) {
+      box(
+        engineGroup,
+        0.04,
+        1.5,
+        1.65,
+        mats.aluminum,
+        -2.3,
+        0.3,
+        -0.75 + i * 0.125,
+        "radiator"
+      );
+    }
+
+    // Cooling fan.
+    const fanGroup = new THREE.Group();
+    fanGroup.position.set(-2.45, 0.3, 0);
+    engineGroup.add(fanGroup);
+
+    cylinder(
+      fanGroup,
+      0.18,
+      0.18,
+      0.2,
+      mats.gold,
+      0,
+      0,
+      0,
+      "radiator"
+    );
+
+    for (let i = 0; i < 6; i++) {
+      const blade = box(
+        fanGroup,
+        0.75,
+        0.07,
+        0.22,
+        mats.blue,
+        0.35,
+        0,
+        0,
+        "radiator"
+      );
+
+      blade.rotation.x = i * Math.PI / 3;
+    }
+
+    moving.fans.push(fanGroup);
+
+    // Engine accessory belts.
+    const belt = ring(
+      engineGroup,
+      0.52,
+      0.055,
+      mats.black,
+      -1.65,
+      -0.55,
+      0.9,
+      "crank"
+    );
+
+    belt.rotation.x = Math.PI / 2;
+  }
+
+  // ------------------------------------------------------------
+  // CAR / DRIVETRAIN
+  // ------------------------------------------------------------
+
+  function createCar() {
+    carGroup = new THREE.Group();
+    scene.add(carGroup);
+
+    // Chassis.
+    box(carGroup, 6.7, 0.35, 2.5, mats.dark, 0, -1.2, 0);
+
+    // Body.
+    box(carGroup, 6.3, 0.65, 2.8, material(0x192d49, 0.6, 0.25), 0, -0.85, 0);
+
+    // Cabin.
+    const cabin = box(
+      carGroup,
+      3.1,
+      1.2,
+      2.3,
+      material(0x183e62, 0.5, 0.2),
+      -0.4,
+      -0.1,
+      0
+    );
+
+    // Windows.
+    const glass = new THREE.MeshStandardMaterial({
+      color: 0x5bbcff,
+      metalness: 0.3,
+      roughness: 0.1,
+      transparent: true,
+      opacity: 0.35
+    });
+
+    box(carGroup, 2.8, 0.8, 0.04, glass, -0.4, -0.05, 1.17);
+    box(carGroup, 2.8, 0.8, 0.04, glass, -0.4, -0.05, -1.17);
+
+    // Wheels.
+    for (const x of [-2.25, 2.25]) {
+      for (const z of [-1.55, 1.55]) {
+        const wheelGroup = new THREE.Group();
+        wheelGroup.position.set(x, -1.45, z);
+        carGroup.add(wheelGroup);
+
+        const tire = cylinder(
+          wheelGroup,
+          0.58,
+          0.58,
+          0.28,
+          mats.rubber,
+          0,
+          0,
+          0,
+          "wheel",
+          32
         );
 
-        dm.updateMatrix();
-        pil.setMatrixAt(n++, dm.matrix);
+        tire.rotation.x = Math.PI / 2;
+
+        const rim = cylinder(
+          wheelGroup,
+          0.31,
+          0.31,
+          0.3,
+          mats.aluminum,
+          0,
+          0,
+          0,
+          "wheel",
+          24
+        );
+
+        rim.rotation.x = Math.PI / 2;
+
+        for (let i = 0; i < 8; i++) {
+          const spoke = box(
+            wheelGroup,
+            0.08,
+            0.5,
+            0.08,
+            mats.gold,
+            0,
+            0.18,
+            0
+          );
+
+          spoke.rotation.z = i * Math.PI / 4;
+        }
+
+        moving.wheels.push(wheelGroup);
       }
+    }
+
+    // Headlights.
+    for (const z of [-0.85, 0.85]) {
+      const light = sphere(
+        carGroup,
+        0.17,
+        material(0xc9edff, 0.2, 0.15),
+        3.05,
+        -0.85,
+        z
+      );
+
+      light.material.emissive = new THREE.Color(0x8acfff);
+      light.material.emissiveIntensity = 1.5;
+    }
+
+    // Rear lights.
+    for (const z of [-0.85, 0.85]) {
+      const light = sphere(
+        carGroup,
+        0.14,
+        mats.red,
+        -3.05,
+        -0.85,
+        z
+      );
+    }
+
+    // Driveshaft.
+    rod(
+      carGroup,
+      [0.5, -1.25, 0],
+      [-1.8, -1.25, 0],
+      0.1,
+      mats.gold
+    );
+  }
+
+  // ------------------------------------------------------------
+  // CONTROLS
+  // ------------------------------------------------------------
+
+  function createControls() {
+    if (startButton) {
+      startButton.addEventListener("click", () => {
+        state.running = !state.running;
+
+        if (state.running) {
+          startButton.textContent = "STOP ENGINE";
+          state.rpm = Math.max(state.rpm, 850);
+        } else {
+          startButton.textContent = "START ENGINE";
+          state.rpm = 0;
+          state.speed = 0;
+        }
+      });
+    }
+
+    if (throttleInput) {
+      throttleInput.addEventListener("input", () => {
+        state.throttle = Number(throttleInput.value) / 100;
+        if (throttleOutput) {
+          throttleOutput.textContent = Math.round(state.throttle * 100) + "%";
+        }
+      });
+
+      state.throttle = Number(throttleInput.value) / 100 || 0.25;
+    }
+
+    if (slowInput) {
+      slowInput.addEventListener("input", () => {
+        state.slowMotion = Number(slowInput.value) / 100;
+      });
+
+      state.slowMotion = Number(slowInput.value) / 100 || 1;
+    }
+
+    if (autoInput) {
+      autoInput.addEventListener("change", () => {
+        state.automatic = autoInput.checked;
+      });
+
+      state.automatic = autoInput.checked;
+    }
+
+    if (engineModeButton) {
+      engineModeButton.addEventListener("click", () => setMode(false));
+    }
+
+    if (driveModeButton) {
+      driveModeButton.addEventListener("click", () => setMode(true));
+    }
+
+    if (gearsElement) {
+      gearsElement.addEventListener("click", (event) => {
+        const button = event.target.closest("[data-gear]");
+        if (!button) return;
+        setGear(Number(button.dataset.gear));
+      });
+    }
+
+    // Keyboard controls.
+    window.addEventListener("keydown", (event) => {
+      state.keys[event.code] = true;
+
+      if (event.code === "Space") {
+        event.preventDefault();
+        state.running = !state.running;
+        if (startButton) {
+          startButton.textContent = state.running ? "STOP ENGINE" : "START ENGINE";
+        }
+      }
+
+      if (event.code === "ArrowUp") {
+        state.throttle = clamp(state.throttle + 0.05, 0, 1);
+      }
+
+      if (event.code === "ArrowDown") {
+        state.throttle = clamp(state.throttle - 0.05, 0, 1);
+      }
+
+      if (event.code === "KeyN") {
+        setGear(0);
+      }
+
+      if (event.code.startsWith("Digit")) {
+        const number = Number(event.code.slice(5));
+        if (number >= 1 && number <= 5) setGear(number);
+      }
+    });
+
+    window.addEventListener("keyup", (event) => {
+      state.keys[event.code] = false;
+    });
+
+    // Mouse orbit controls.
+    const canvas = renderer.domElement;
+
+    canvas.addEventListener("pointerdown", (event) => {
+      state.mouseDown = true;
+      state.dragging = false;
+      state.lastX = event.clientX;
+      state.lastY = event.clientY;
+      canvas.setPointerCapture(event.pointerId);
+    });
+
+    canvas.addEventListener("pointermove", (event) => {
+      if (!state.mouseDown) return;
+
+      const dx = event.clientX - state.lastX;
+      const dy = event.clientY - state.lastY;
+
+      if (Math.abs(dx) + Math.abs(dy) > 3) {
+        state.dragging = true;
+      }
+
+      state.cameraAngle -= dx * 0.006;
+      state.cameraElevation = clamp(
+        state.cameraElevation + dy * 0.004,
+        -0.15,
+        1.35
+      );
+
+      state.lastX = event.clientX;
+      state.lastY = event.clientY;
+
+      updateCamera();
+    });
+
+    canvas.addEventListener("pointerup", (event) => {
+      if (!state.dragging) {
+        inspectObject(event);
+      }
+
+      state.mouseDown = false;
+    });
+
+    canvas.addEventListener("wheel", (event) => {
+      state.cameraDistance = clamp(
+        state.cameraDistance + event.deltaY * 0.008,
+        5,
+        22
+      );
+
+      updateCamera();
+    }, { passive: true });
+
+    canvas.addEventListener("dblclick", () => {
+      state.cameraAngle = -0.7;
+      state.cameraElevation = 0.55;
+      state.cameraDistance = 11;
+      updateCamera();
+    });
+  }
+
+  // ------------------------------------------------------------
+  // MODE AND GEAR MANAGEMENT
+  // ------------------------------------------------------------
+
+  function setMode(drive) {
+    state.driveMode = drive;
+
+    if (engineModeButton) {
+      engineModeButton.classList.toggle("active", !drive);
+    }
+
+    if (driveModeButton) {
+      driveModeButton.classList.toggle("active", drive);
+    }
+
+    if (carGroup) {
+      carGroup.visible = drive;
+    }
+
+    if (engineGroup) {
+      engineGroup.visible = true;
+    }
+
+    if (tip) {
+      tip.textContent = drive
+        ? "DRIVING MODE • Use throttle and gears to drive"
+        : "ENGINE MODE • Click engine components to inspect";
     }
   }
 
-  pil.count = n;
-  pil.instanceMatrix.needsUpdate = true;
+  function setGear(gear) {
+    state.gear = clamp(gear, 0, 5);
 
-  // Camera
-  const cy = Math.cos(S.yaw);
-  const sy = Math.sin(S.yaw);
+    if (gearText) {
+      gearText.textContent = state.gear === 0 ? "N" : state.gear;
+    }
 
-  tmp.set(
-    S.px + (2 * cy),
-    1,
-    S.pz - (2 * sy)
-  );
-
-  CAM.tgt.lerp(tmp, 1 - Math.exp(-dt * 10));
-
-  const A = CAM.az + (MODE === "drive" ? S.yaw : 0);
-  const sp = Math.sin(CAM.pol);
-
-  wr.set(
-    CAM.tgt.x + CAM.d * sp * Math.sin(A),
-    CAM.tgt.y + CAM.d * Math.cos(CAM.pol),
-    CAM.tgt.z + CAM.d * sp * Math.cos(A)
-  );
-
-  cam.position.lerp(wr, 1 - Math.exp(-dt * 12));
-  cam.lookAt(CAM.tgt);
-}
-
-// ---------- protected animation loop ----------
-let last = performance.now();
-let animationFrame = 0;
-let loopRunning = true;
-
-function loop(now) {
-  if (!loopRunning) return;
-
-  animationFrame = requestAnimationFrame(loop);
-
-  if (document.hidden) {
-    last = now;
-    return;
+    if (gearsElement) {
+      gearsElement.querySelectorAll("[data-gear]").forEach((button) => {
+        button.classList.toggle(
+          "active",
+          Number(button.dataset.gear) === state.gear
+        );
+      });
+    }
   }
 
-  const dt = Math.min(.05, Math.max(0, (now - last) / 1000));
-  last = now;
+  // ------------------------------------------------------------
+  // PART INSPECTION
+  // ------------------------------------------------------------
 
-  try {
-    step(dt);
-    ren.render(scene, cam);
-    hideError();
-  } catch (error) {
-    console.error("3D simulator error:", error);
+  function createPartsList() {
+    if (!partsPanel) return;
 
-    loopRunning = false;
-    cancelAnimationFrame(animationFrame);
+    partsPanel.innerHTML = "";
 
-    fail(
-      "The simulator encountered an error while updating:\n" +
-      error.message
+    Object.entries(PARTS).forEach(([key, info]) => {
+      const button = document.createElement("button");
+      button.className = "part-button";
+      button.textContent = info[0];
+      button.addEventListener("click", () => selectPart(key));
+      partsPanel.appendChild(button);
+    });
+  }
+
+  function selectPart(key) {
+    const info = PARTS[key];
+    if (!info) return;
+
+    state.selected = key;
+
+    if (detailPanel) {
+      detailPanel.innerHTML = `
+        <h3>${info[0]}</h3>
+        <p>${info[1]}</p>
+      `;
+    }
+
+    if (partsPanel) {
+      partsPanel.querySelectorAll("button").forEach((button) => {
+        button.classList.toggle(
+          "active",
+          button.textContent === info[0]
+        );
+      });
+    }
+
+    // Highlight selected component.
+    engineParts.forEach((mesh) => {
+      if (!mesh.material) return;
+
+      if (!mesh.userData.originalColor) {
+        mesh.userData.originalColor = mesh.material.color.clone();
+      }
+
+      if (mesh.userData.part === key) {
+        mesh.material.emissive = new THREE.Color(0x167bff);
+        mesh.material.emissiveIntensity = 0.45;
+      } else if (mesh.material.emissive) {
+        mesh.material.emissiveIntensity = 0;
+      }
+    });
+  }
+
+  function inspectObject(event) {
+    const rect = renderer.domElement.getBoundingClientRect();
+
+    pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+    raycaster.setFromCamera(pointer, camera);
+
+    const hits = raycaster.intersectObjects(clickableParts, false);
+
+    if (hits.length) {
+      const key = hits[0].object.userData.part;
+      if (key) selectPart(key);
+    }
+  }
+
+  // ------------------------------------------------------------
+  // CAMERA
+  // ------------------------------------------------------------
+
+  function updateCamera() {
+    if (!camera) return;
+
+    const horizontal = Math.cos(state.cameraElevation) * state.cameraDistance;
+
+    camera.position.set(
+      Math.sin(state.cameraAngle) * horizontal,
+      Math.sin(state.cameraElevation) * state.cameraDistance + 0.2,
+      Math.cos(state.cameraAngle) * horizontal
     );
+
+    camera.lookAt(0.1, 0, 0);
   }
-}
 
-document.addEventListener("visibilitychange", () => {
-  last = performance.now();
-});
+  function resize() {
+    if (!renderer || !camera) return;
 
-animationFrame = requestAnimationFrame(loop);
+    const width = view.clientWidth;
+    const height = view.clientHeight;
+
+    if (!width || !height) return;
+
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+
+    renderer.setSize(width, height);
+  }
+
+  // ------------------------------------------------------------
+  // ENGINE ANIMATION
+  // ------------------------------------------------------------
+
+  function updateEngine(delta) {
+    const idleRPM = 850;
+    const maxRPM = 7000;
+
+    if (state.running) {
+      const targetRPM = idleRPM + state.throttle * (maxRPM - idleRPM);
+
+      state.rpm = lerp(
+        state.rpm,
+        targetRPM,
+        Math.min(delta * 3.5, 1)
+      );
+    } else {
+      state.rpm = lerp(state.rpm, 0, Math.min(delta * 4, 1));
+    }
+
+    const rotationSpeed = (state.rpm / 60) * Math.PI * 2;
+
+    state.engineAngle += rotationSpeed * delta * state.slowMotion;
+    state.camAngle += rotationSpeed * 0.5 * delta * state.slowMotion;
+
+    if (moving.crank) {
+      moving.crank.rotation.x = state.engineAngle;
+    }
+
+    if (moving.flywheel) {
+      moving.flywheel.rotation.x = state.engineAngle;
+    }
+
+    moving.cams.forEach((cam) => {
+      if (cam.geometry.type === "CylinderGeometry") {
+        cam.rotation.x = state.camAngle;
+      }
+    });
+
+    // Piston movement.
+    moving.pistons.forEach((piston, i) => {
+      const angle = state.engineAngle + piston.offset;
+      const position = Math.cos(angle);
+
+      const y = -0.05 + position * 0.48;
+
+      piston.mesh.position.y = y;
+
+      piston.rings.forEach((r, index) => {
+        r.position.y = y + (index - 1) * 0.065;
+      });
+
+      const rodData = moving.rods[i];
+
+      if (rodData) {
+        const crankX = piston.x + Math.sin(angle) * 0.25;
+        const crankY = -0.85 - Math.cos(angle) * 0.25;
+
+        const start = new THREE.Vector3(piston.x, y - 0.1, 0);
+        const end = new THREE.Vector3(crankX, crankY, 0);
+
+        const direction = new THREE.Vector3().subVectors(end, start);
+
+        rodData.mesh.position.copy(start).add(end).multiplyScalar(0.5);
+        rodData.mesh.scale.y = direction.length() / 1;
+        rodData.mesh.quaternion.setFromUnitVectors(
+          new THREE.Vector3(0, 1, 0),
+          direction.normalize()
+        );
+
+        rodData.top.position.copy(start);
+        rodData.bottom.position.copy(end);
+      }
+
+      // Valve movement.
+      const intake = moving.intakeValves[i];
+      const exhaust = moving.exhaustValves[i];
+
+      if (intake && exhaust) {
+        const cycle = (angle % (Math.PI * 4) + Math.PI * 4) % (Math.PI * 4);
+
+        const intakeOpen = cycle > Math.PI * 1.4 && cycle < Math.PI * 2.2;
+        const exhaustOpen = cycle > Math.PI * 3.2 && cycle < Math.PI * 3.9;
+
+        intake.position.y = 1.08 - (intakeOpen ? 0.13 : 0);
+        exhaust.position.y = 1.08 - (exhaustOpen ? 0.13 : 0);
+      }
+
+      // Spark animation.
+      const spark = moving.sparks[i];
+
+      if (spark) {
+        const cycle = (angle % (Math.PI * 4) + Math.PI * 4) % (Math.PI * 4);
+        const ignition = cycle > Math.PI * 2 && cycle < Math.PI * 2.13;
+
+        spark.material.emissiveIntensity =
+          ignition && state.running ? 5 : 0;
+      }
+    });
+
+    // Cooling fan.
+    moving.fans.forEach((fan) => {
+      fan.rotation.x += rotationSpeed * delta * 0.12;
+    });
+
+    // RPM display.
+    if (rpmElement) {
+      rpmElement.textContent = Math.round(state.rpm).toLocaleString();
+    }
+
+    if (powerBar) {
+      powerBar.style.width =
+        clamp((state.rpm / maxRPM) * 100, 0, 100) + "%";
+    }
+  }
+
+  // ------------------------------------------------------------
+  // DRIVING PHYSICS
+  // ------------------------------------------------------------
+
+  function updateDriving(delta) {
+    if (!state.driveMode) {
+      state.speed = lerp(state.speed, 0, delta * 2);
+      return;
+    }
+
+    const gearRatios = [0, 3.2, 2.1, 1.5, 1.1, 0.85];
+    const ratio = gearRatios[state.gear] || 0;
+
+    const gas = state.running ? state.throttle : 0;
+
+    const braking = state.keys["ArrowDown"] ? 1 : 0;
+    const acceleration =
+      gas * ratio * 2.1 * (state.clutch > 0.5 ? 0 : 1);
+
+    state.speed += acceleration * delta;
+    state.speed -= braking * delta * 8;
+    state.speed -= delta * 0.2;
+
+    state.speed = clamp(state.speed, 0, 240);
+
+    if (state.automatic && state.running) {
+      if (state.rpm > 6200 && state.gear < 5) {
+        setGear(state.gear + 1);
+      }
+
+      if (state.rpm < 1700 && state.gear > 1) {
+        setGear(state.gear - 1);
+      }
+    }
+
+    // Wheel rotation.
+    moving.wheels.forEach((wheel) => {
+      wheel.rotation.x -= state.speed * delta * 0.1;
+    });
+
+    // Steering.
+    const steerInput =
+      (state.keys["ArrowLeft"] ? 1 : 0) -
+      (state.keys["ArrowRight"] ? 1 : 0);
+
+    state.steering = lerp(
+      state.steering,
+      steerInput * 0.45,
+      delta * 5
+    );
+
+    if (speedElement) {
+      speedElement.textContent = Math.round(state.speed);
+    }
+
+    if (gearText) {
+      gearText.textContent = state.gear === 0 ? "N" : state.gear;
+    }
+  }
+
+  // ------------------------------------------------------------
+  // FOUR-STROKE CYCLE DISPLAY
+  // ------------------------------------------------------------
+
+  function updateStrokeDisplay() {
+    if (!strokesElement) return;
+
+    const cycle = (
+      (state.engineAngle / (Math.PI * 4)) % 1 + 1
+    ) % 1;
+
+    const stage = Math.floor(cycle * 4);
+
+    const labels = [
+      "INTAKE",
+      "COMPRESSION",
+      "POWER",
+      "EXHAUST"
+    ];
+
+    const label = labels[stage];
+
+    strokesElement.textContent = label;
+
+    if (chipsElement) {
+      chipsElement.textContent = "FIRING ORDER: 1 - 3 - 4 - 2";
+    }
+  }
+
+  // ------------------------------------------------------------
+  // ANIMATION LOOP
+  // ------------------------------------------------------------
+
+  function animate() {
+    if (animationFrame !== null) {
+      cancelAnimationFrame(animationFrame);
+    }
+
+    const frame = () => {
+      animationFrame = requestAnimationFrame(frame);
+
+      if (document.hidden) return;
+
+      const delta = Math.min(clock.getDelta(), 0.05) * state.slowMotion;
+
+      state.elapsed += delta;
+
+      updateEngine(delta);
+      updateDriving(delta);
+      updateStrokeDisplay();
+
+      if (throttleOutput && throttleInput) {
+        throttleOutput.textContent =
+          Math.round(Number(throttleInput.value)) + "%";
+      }
+
+      renderer.render(scene, camera);
+    };
+
+    frame();
+  }
+
+  // ------------------------------------------------------------
+  // VISIBILITY AND CLEANUP
+  // ------------------------------------------------------------
+
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && renderer) {
+      clock.getDelta();
+      renderer.render(scene, camera);
+    }
+  });
+
+  window.addEventListener("beforeunload", () => {
+    if (animationFrame !== null) {
+      cancelAnimationFrame(animationFrame);
+    }
+
+    if (renderer) {
+      renderer.dispose();
+    }
+  });
+
+  // ------------------------------------------------------------
+  // START
+  // ------------------------------------------------------------
+
+  init();
+
+})();
