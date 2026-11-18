@@ -2,122 +2,206 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Drive a Four-Cylinder Engine in 3D</title>
-
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-
-<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#080d15">
+  <title>APEX | Engine Simulator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/128/three.min.js"></script>
+  <script src="script.js" defer></script>
 </head>
-
 <body>
-
-<header class="top">
-  <h1>Drive a four-cylinder engine in 3D</h1>
-  <p>See-through car, real firing order, working clutch and five-speed gearbox. Drag to orbit, scroll to zoom, click any part to learn what it does, or press Drive and take it for a spin.</p>
-</header>
-
-<main class="layout">
-
-  <section class="stage" aria-label="3D engine and car">
-    <canvas id="view"></canvas>
-    <div id="tip"></div>
-
-    <div class="legend">
-      <span><i style="background:#6fb7d6"></i>fresh air and fuel</span>
-      <span><i style="background:#e4572e"></i>burning</span>
-      <span><i style="background:#7d868c"></i>exhaust</span>
-    </div>
-  </section>
-
-  <aside class="panel">
-
-    <div class="card controls">
-      <button id="start" type="button">Start engine</button>
-
-      <label for="throttle">Throttle <output id="tOut">15%</output></label>
-      <input id="throttle" type="range" min="0" max="100" value="15">
-
-      <label class="check">
-        <input id="slow" type="checkbox">
-        Slow-motion engine
-      </label>
-
-      <label class="check">
-        <input id="auto" type="checkbox" checked>
-        Automatic gearbox in Drive mode
-      </label>
-
-      <div class="modes">
-        <button id="mEngine" type="button" class="on">Engine view</button>
-        <button id="mDrive" type="button">Drive</button>
+  <div class="app">
+    <header class="topbar">
+      <a class="brand" href="#">
+        <span class="brand-mark">A</span>
+        <span>APEX<span class="brand-sub">ENGINE LAB</span></span>
+      </a>
+      <div class="top-status">
+        <span class="status-dot"></span>
+        SIMULATION ONLINE
+        <span class="top-divider"></span>
+        FOUR-CYLINDER / INLINE
       </div>
-    </div>
+      <div class="top-right">
+        <span class="version">V2.0</span>
+        <span class="live-label">LIVE SIMULATION</span>
+      </div>
+    </header>
 
-    <div class="card">
-      <h2>Gearbox</h2>
-      <div class="gears" id="gears"></div>
-      <p id="gt" class="small">Neutral</p>
-      <p class="small"><b>Drive keys:</b> W or Up = gas, S or Down = brake, A and D or Left and Right = steer, Q and E = shift down and up, 0 to 5 = pick a gear, R = reset car.</p>
-    </div>
+    <main>
+      <section class="hero">
+        <div>
+          <div class="eyebrow"><span></span> INTERACTIVE AUTOMOTIVE ENGINEERING</div>
+          <h1>UNDER THE <span>HOOD.</span></h1>
+          <p>Explore the mechanics. Start the engine. Take control.</p>
+        </div>
+        <div class="hero-badge">
+          <span class="badge-number">01</span>
+          <span>INLINE-4<br>POWERTRAIN</span>
+        </div>
+      </section>
 
-    <div class="card read">
-      <div class="two">
-        <div class="rpm">
-          <strong id="rpm">0</strong>
-          <span>rpm</span>
+      <section class="workspace">
+        <div class="main-column">
+          <div class="viewer-card">
+            <div class="viewer-top">
+              <div class="viewer-heading">
+                <span class="viewer-icon">◈</span>
+                <div>
+                  <strong id="viewTitle">ENGINE EXPLORER</strong>
+                  <small id="viewSubtitle">LIVE 3D POWERTRAIN VISUALIZATION</small>
+                </div>
+              </div>
+              <div class="viewer-actions">
+                <button id="mEngine" class="mode-btn active">ENGINE</button>
+                <button id="mDrive" class="mode-btn">DRIVE</button>
+                <button id="resetCamera" class="icon-btn" title="Reset camera">↺</button>
+              </div>
+            </div>
+
+            <div class="stage">
+              <canvas id="view"></canvas>
+              <div class="stage-vignette"></div>
+              <div class="stage-label stage-label-left">
+                <span class="stage-dot"></span>
+                <span id="stageMode">ENGINE SYSTEM / CUTAWAY</span>
+              </div>
+              <div class="stage-label stage-label-right">3D INTERACTIVE</div>
+              <div id="tip"></div>
+              <div class="stage-help">DRAG TO ROTATE <span>•</span> SCROLL TO ZOOM <span>•</span> CLICK A PART</div>
+              <div id="loading" class="loading-overlay">
+                <div class="loader"></div>
+                <strong>INITIALIZING ENGINE LAB</strong>
+                <small>Building the powertrain...</small>
+              </div>
+            </div>
+
+            <div class="viewer-bottom">
+              <div class="legend-item"><span class="legend-dot intake"></span> INTAKE</div>
+              <div class="legend-item"><span class="legend-dot compression"></span> COMPRESSION</div>
+              <div class="legend-item"><span class="legend-dot power"></span> POWER</div>
+              <div class="legend-item"><span class="legend-dot exhaust"></span> EXHAUST</div>
+              <div class="viewer-bottom-right">FIRING ORDER <b>1 — 3 — 4 — 2</b></div>
+            </div>
+          </div>
+
+          <div class="telemetry-grid">
+            <div class="telemetry-card rpm-card">
+              <div class="telemetry-head"><span>ENGINE SPEED</span><span class="telemetry-unit">RPM</span></div>
+              <div class="telemetry-value"><strong id="rpm">0</strong><small>RPM</small></div>
+              <div class="meter"><div id="bar"></div></div>
+              <div class="meter-labels"><span>0</span><span>2,000</span><span>4,000</span><span>6,500</span></div>
+            </div>
+            <div class="telemetry-card">
+              <div class="telemetry-head"><span>VEHICLE SPEED</span><span class="telemetry-unit">KM/H</span></div>
+              <div class="telemetry-value"><strong id="kph">0</strong><small>KM/H</small></div>
+              <div class="telemetry-foot"><span class="mini-indicator"></span> ROAD SPEED</div>
+            </div>
+            <div class="telemetry-card">
+              <div class="telemetry-head"><span>COOLANT TEMP</span><span class="telemetry-unit">°C</span></div>
+              <div class="telemetry-value"><strong id="temp">22</strong><small>°C</small></div>
+              <div class="telemetry-foot"><span class="mini-indicator temp-indicator"></span><span id="tempState">COLD</span></div>
+            </div>
+            <div class="telemetry-card">
+              <div class="telemetry-head"><span>OIL PRESSURE</span><span class="telemetry-unit">BAR</span></div>
+              <div class="telemetry-value"><strong id="oil">0.0</strong><small>BAR</small></div>
+              <div class="telemetry-foot"><span class="mini-indicator oil-indicator"></span> LUBRICATION</div>
+            </div>
+          </div>
+
+          <div class="control-card">
+            <div class="section-heading">
+              <div><span class="section-kicker">01 / POWERTRAIN</span><h2>ENGINE CONTROLS</h2></div>
+              <span class="system-status" id="engineStatus"><i></i> ENGINE OFF</span>
+            </div>
+            <div class="engine-controls">
+              <button id="start" class="start-btn"><span class="start-icon">⏻</span><span id="startText">START ENGINE</span></button>
+              <div class="throttle-control">
+                <div class="control-label"><label for="throttle">THROTTLE</label><strong id="tOut">0%</strong></div>
+                <input id="throttle" type="range" min="0" max="100" value="0">
+                <div class="range-labels"><span>IDLE</span><span>FULL THROTTLE</span></div>
+              </div>
+              <label class="toggle-control"><input id="slow" type="checkbox"><span class="toggle"></span><span>SLOW MOTION</span></label>
+              <label class="toggle-control"><input id="auto" type="checkbox"><span class="toggle"></span><span>AUTO GEARBOX</span></label>
+            </div>
+          </div>
+
+          <div class="control-card driving-card">
+            <div class="section-heading">
+              <div><span class="section-kicker">02 / TRANSMISSION</span><h2>DRIVE SYSTEM</h2></div>
+              <span class="gear-readout" id="gearDisplay">N</span>
+            </div>
+            <div class="transmission-layout">
+              <div class="gear-area">
+                <div class="gear-buttons" id="gears"></div>
+                <div class="gear-description" id="gt">Neutral — engine is disconnected from the wheels.</div>
+              </div>
+              <div class="drive-info">
+                <div class="drive-info-row"><span>TRANSMISSION</span><b>5-SPEED MANUAL</b></div>
+                <div class="drive-info-row"><span>FINAL DRIVE</span><b>4.10 : 1</b></div>
+                <div class="drive-info-row"><span>FIRING ORDER</span><b>1-3-4-2</b></div>
+                <div class="drive-info-row"><span>CLUTCH</span><b id="clutchState">ENGAGED</b></div>
+              </div>
+            </div>
+            <div class="keyboard-hints">
+              <span><kbd>W</kbd> ACCELERATE</span>
+              <span><kbd>S</kbd> BRAKE</span>
+              <span><kbd>A</kbd><kbd>D</kbd> STEER</span>
+              <span><kbd>Q</kbd><kbd>E</kbd> SHIFT</span>
+              <span><kbd>R</kbd> RESET CAR</span>
+            </div>
+          </div>
         </div>
 
-        <div class="rpm">
-          <strong id="kph">0</strong>
-          <span>km/h</span>
-        </div>
-      </div>
+        <aside class="side-column">
+          <div class="side-card engine-cycle-card">
+            <div class="side-heading"><div><span class="section-kicker">03 / COMBUSTION</span><h2>ENGINE CYCLE</h2></div><span class="cycle-tag">4-STROKE</span></div>
+            <div class="cycle-list" id="strokes">
+              <div class="cycle-row"><span class="cycle-number">01</span><div><b>INTAKE</b><small>Air and fuel enter</small></div><span class="cycle-arrow">↓</span></div>
+              <div class="cycle-row"><span class="cycle-number">02</span><div><b>COMPRESSION</b><small>Mixture is compressed</small></div><span class="cycle-arrow">↑</span></div>
+              <div class="cycle-row"><span class="cycle-number">03</span><div><b>POWER</b><small>Spark ignites mixture</small></div><span class="cycle-arrow">↓</span></div>
+              <div class="cycle-row"><span class="cycle-number">04</span><div><b>EXHAUST</b><small>Burnt gas exits</small></div><span class="cycle-arrow">↑</span></div>
+            </div>
+            <div class="firing-order">
+              <span>FIRING SEQUENCE</span>
+              <div><b>1</b><i>→</i><b>3</b><i>→</i><b>4</b><i>→</i><b>2</b></div>
+            </div>
+            <div class="cylinder-chips" id="chips"></div>
+          </div>
 
-      <div class="bar">
-        <div id="bar"></div>
-      </div>
+          <div class="side-card parts-card">
+            <div class="side-heading"><div><span class="section-kicker">04 / COMPONENTS</span><h2>EXPLORE PARTS</h2></div><span class="parts-count">19 PARTS</span></div>
+            <p class="side-description">Select a component to highlight it in the 3D model and learn how it works.</p>
+            <div class="parts-list" id="parts"></div>
+            <div class="part-detail" id="detail">
+              <div class="detail-icon">◈</div>
+              <b>SELECT A COMPONENT</b>
+              <p>Choose an engine component above or click a part directly in the 3D model.</p>
+            </div>
+          </div>
 
-      <div class="chips" id="chips"></div>
-      <p class="small">Firing order 1-3-4-2, so one cylinder fires every half turn.</p>
-    </div>
+          <div class="side-card quick-card">
+            <div class="side-heading"><div><span class="section-kicker">05 / CAMERA</span><h2>VIEW OPTIONS</h2></div></div>
+            <div class="view-options">
+              <button id="camFront">FRONT VIEW</button>
+              <button id="camSide">SIDE VIEW</button>
+              <button id="camTop">TOP VIEW</button>
+              <button id="toggleBody">HIDE BODY</button>
+            </div>
+            <div class="quick-note"><span>TIP</span> Start the engine to see the pistons, valves, crankshaft, and combustion cycle in motion.</div>
+          </div>
+        </aside>
+      </section>
 
-    <div class="card">
-      <h2>The four strokes (cylinder 1)</h2>
-
-      <ol id="strokes">
-        <li><b>Intake.</b> The piston falls and the intake valve opens. Air and fuel flow in past the throttle.</li>
-        <li><b>Compression.</b> Both valves shut and the piston rises, squeezing the mixture.</li>
-        <li><b>Power.</b> The spark ignites the mixture. Hot expanding gas shoves the piston down.</li>
-        <li><b>Exhaust.</b> The exhaust valve opens and the rising piston pushes burnt gas out.</li>
-      </ol>
-    </div>
-
-    <div class="card">
-      <h2>Parts</h2>
-      <div id="parts" class="parts"></div>
-      <div id="detail" class="detail">Pick a part, or click it in the 3D view.</div>
-    </div>
-
-  </aside>
-
-</main>
-
-<!-- Three.js primary CDN -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-
-<!-- Three.js backup CDN if the primary fails -->
-<script>
-if (!window.THREE) {
-  document.write('<script src="https://unpkg.com/three@0.128.0/build/three.min.js"><\/script>');
-}
-</script>
-
-<!-- Main JavaScript -->
-<script src="script.js"></script>
-
+      <footer class="footer">
+        <span>APEX ENGINE LAB <b>—</b> INTERACTIVE ENGINEERING SIMULATOR</span>
+        <span>BUILT FOR THE LOVE OF MACHINES.</span>
+      </footer>
+    </main>
+  </div>
 </body>
 </html>
