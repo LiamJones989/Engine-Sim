@@ -1,4 +1,3 @@
-
 /* ============================================================
    FOUR-CYLINDER ENGINE SIMULATOR — UPGRADED SCRIPT
    Three.js r128
@@ -246,6 +245,18 @@
 
     } catch (error) {
       console.error("Engine initialization failed:", error);
+
+      const loadingOverlay = $("loading");
+      if (loadingOverlay) {
+        const heading = loadingOverlay.querySelector("strong");
+        const message = loadingOverlay.querySelector("small");
+        if (heading) heading.textContent = "3D ENGINE FAILED";
+        if (message) message.textContent = error && error.message
+          ? error.message
+          : "Check the browser console for details.";
+        loadingOverlay.classList.add("error");
+      }
+
       if (tip) tip.textContent = "3D engine failed to initialize. Check the console.";
     }
   }
@@ -1609,6 +1620,12 @@
       }
 
       renderer.render(scene, camera);
+
+      // The first successful render means the 3D scene is ready.
+      const loadingOverlay = $("loading");
+      if (loadingOverlay && !loadingOverlay.classList.contains("hidden")) {
+        loadingOverlay.classList.add("hidden");
+      }
     };
 
     frame();
